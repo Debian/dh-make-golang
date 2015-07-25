@@ -215,7 +215,23 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 	cmd := exec.Command("gbp", "import-orig", "--pristine-tar", "--no-interactive", filepath.Join(wd, orig))
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	return dir, cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return dir, err
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(dir, ".gitignore"), []byte(".pc\n"), 0644); err != nil {
+		return dir, err
+	}
+
+	if err := runGitCommandIn(dir, "add", ".gitignore"); err != nil {
+		return dir, err
+	}
+
+	if err := runGitCommandIn(dir, "commit", "-m", "Ignore quilt dir .pc via .gitignore"); err != nil {
+		return dir, err
+	}
+
+	return dir, nil
 }
 
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
