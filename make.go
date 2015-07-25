@@ -80,7 +80,7 @@ func makeUpstreamSourceTarball(gopkg, debsrc string) (string, string, []string, 
 	f.Close()
 	base := filepath.Base(gopkg)
 	dir := filepath.Dir(gopkg)
-	cmd = exec.Command("tar", "cjf", tempfile, "--exclude-vcs", base)
+	cmd = exec.Command("tar", "cjf", tempfile, "--exclude-vcs", "--exclude=vendor", base)
 	cmd.Dir = filepath.Join(tempdir, "src", dir)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
