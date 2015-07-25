@@ -313,7 +313,7 @@ func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string
 	defer f.Close()
 	fmt.Fprintf(f, "%s (%s) unstable; urgency=medium\n", debsrc, debversion)
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "  * Initial release (Closes: nnnn)\n")
+	fmt.Fprintf(f, "  * Initial release (Closes: TODO)\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, " -- %s <%s>  %s\n",
 		getDebianName(),
