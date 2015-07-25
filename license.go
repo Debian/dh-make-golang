@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type licensesReply struct {
@@ -13,12 +15,23 @@ type licensesReply struct {
 	Featured bool   `json:"featured"`
 }
 
+type ownerReply struct {
+	URL string `json:"url"`
+}
+
 type repositoryReply struct {
-	License licensesReply `json:"license"`
+	License     licensesReply `json:"license"`
+	CreatedAt   string        `json:"created_at"`
+	Description string        `json:"description"`
+	Owner       ownerReply    `json:"owner"`
 }
 
 type licenseReply struct {
 	Body string `json:"body"`
+}
+
+type usersReply struct {
+	Name string `json:"name"`
 }
 
 // To update, use:
@@ -64,6 +77,7 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
 		return "", "", nil
 	}
+	// TODO: cache this reply
 	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+gopkg[len("github.com/"):], nil)
 	if err != nil {
 		return "", "", err
@@ -87,4 +101,60 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 	} else {
 		return "TODO", "TODO", nil
 	}
+}
+
+func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
+	if !strings.HasPrefix(gopkg, "github.com/") {
+		return "", "", nil
+	}
+	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	var rr repositoryReply
+	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
+		return "", "", err
+	}
+
+	creation, err := time.Parse("2006-01-02T15:04:05Z", rr.CreatedAt)
+	if err != nil {
+		return "", "", err
+	}
+
+	if strings.TrimSpace(rr.Owner.URL) == "" {
+		return "", "", fmt.Errorf("Repository owner URL not present in API response")
+	}
+
+	resp, err = http.Get(rr.Owner.URL)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	var ur usersReply
+	if err := json.NewDecoder(resp.Body).Decode(&ur); err != nil {
+		return "", "", err
+	}
+
+	return ur.Name, creation.Format("2006") + " " + ur.Name, nil
+}
+
+func getDescriptionForGopkg(gopkg string) (string, error) {
+	if !strings.HasPrefix(gopkg, "github.com/") {
+		return "", nil
+	}
+	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var rr repositoryReply
+	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
+		return "", err
+	}
+
+	return rr.Description, nil
 }

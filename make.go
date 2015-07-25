@@ -351,7 +351,12 @@ func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string
 	deps := append([]string{"${shlibs:Depends}", "${misc:Depends}", "golang-go"}, dependencies...)
 	fmt.Fprintf(f, "Depends: %s\n", strings.Join(deps, ",\n         "))
 	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
-	fmt.Fprintf(f, "Description: TODO: short description\n")
+	description, err := getDescriptionForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
+		description = "TODO: short description"
+	}
+	fmt.Fprintf(f, "Description: %s\n", description)
 	fmt.Fprintf(f, " TODO: long description\n")
 
 	license, fulltext, err := getLicenseForGopkg(gopkg)
@@ -365,12 +370,17 @@ func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string
 		return err
 	}
 	defer f.Close()
+	_, copyright, err := getAuthorAndCopyrightForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine copyright for %q: %v\n", gopkg, err)
+		copyright = "TODO"
+	}
 	fmt.Fprintf(f, "Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Source: %s\n", websiteForGopkg(gopkg))
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files: *\n")
-	fmt.Fprintf(f, "Copyright: TODO\n")
+	fmt.Fprintf(f, "Copyright: %s\n", copyright)
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files: debian/*\n")
@@ -430,9 +440,21 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 		license = "TODO"
 	}
 
+	author, _, err := getAuthorAndCopyrightForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine author for %q: %v\n", gopkg, err)
+		author = "TODO"
+	}
+
+	description, err := getDescriptionForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
+		description = "TODO"
+	}
+
 	fmt.Fprintf(f, "From: %q <%s>\n", getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "To: submit@bugs.debian.org\n")
-	fmt.Fprintf(f, "Subject: ITP: %s -- TODO\n", debsrc)
+	fmt.Fprintf(f, "Subject: ITP: %s -- %s\n", debsrc, description)
 	fmt.Fprintf(f, "Content-Type: text/plain; charset=utf-8\n")
 	fmt.Fprintf(f, "Content-Transfer-Encoding: 8bit\n")
 	fmt.Fprintf(f, "\n")
@@ -442,11 +464,11 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "* Package name    : %s\n", debsrc)
 	fmt.Fprintf(f, "  Version         : %s\n", debversion)
-	fmt.Fprintf(f, "  Upstream Author : TODO\n")
+	fmt.Fprintf(f, "  Upstream Author : %s\n", author)
 	fmt.Fprintf(f, "* URL             : %s\n", websiteForGopkg(gopkg))
 	fmt.Fprintf(f, "* License         : %s\n", license)
 	fmt.Fprintf(f, "  Programming Lang: Go\n")
-	fmt.Fprintf(f, "  Description     : TODO\n")
+	fmt.Fprintf(f, "  Description     : %s\n", description)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, " TODO: long description\n")
 	fmt.Fprintf(f, "\n")
