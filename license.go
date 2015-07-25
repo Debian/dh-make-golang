@@ -75,7 +75,7 @@ var debianLicenseText = map[string]string{
 
 func getLicenseForGopkg(gopkg string) (string, string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", "", nil
+		return "", "", fmt.Errorf("%q is not on GitHub", gopkg)
 	}
 	// TODO: cache this reply
 	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+gopkg[len("github.com/"):], nil)
@@ -105,7 +105,7 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 
 func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", "", nil
+		return "", "", fmt.Errorf("%q is not on GitHub", gopkg)
 	}
 	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
 	if err != nil {
@@ -143,7 +143,7 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 
 func getDescriptionForGopkg(gopkg string) (string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", nil
+		return "", fmt.Errorf("%q is not on GitHub", gopkg)
 	}
 	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
 	if err != nil {
@@ -156,5 +156,5 @@ func getDescriptionForGopkg(gopkg string) (string, error) {
 		return "", err
 	}
 
-	return rr.Description, nil
+	return strings.TrimSpace(rr.Description), nil
 }
