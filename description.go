@@ -28,6 +28,10 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected HTTP status: got %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
 	var rr readmeReply
 	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
 		return "", err
