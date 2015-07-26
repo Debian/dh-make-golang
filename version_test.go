@@ -31,6 +31,8 @@ func TestSnapshotVersion(t *testing.T) {
 	}
 
 	gitCmdOrFatal(t, tempdir, "init")
+	gitCmdOrFatal(t, tempdir, "config", "user.email", "unittest@example.com")
+	gitCmdOrFatal(t, tempdir, "config", "user.name", "Unit Test")
 	gitCmdOrFatal(t, tempdir, "add", "test")
 	cmd := exec.Command("git", "commit", "-a", "-m", "initial commit")
 	cmd.Env = append(os.Environ(), "GIT_COMMITTER_DATE=2015-04-20T11:22:33")
