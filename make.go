@@ -363,7 +363,7 @@ func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string
 	// TODO: change this once we have a “golang” section.
 	fmt.Fprintf(f, "Section: devel\n")
 	fmt.Fprintf(f, "Priority: extra\n")
-	fmt.Fprintf(f, "Maintainer: pkg-go <pkg-go-maintainers@lists.alioth.debian.org>\n")
+	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org>\n")
 	fmt.Fprintf(f, "Uploaders: %s <%s>\n", getDebianName(), getDebianEmail())
 	sort.Strings(dependencies)
 	builddeps := append([]string{"debhelper (>= 9)", "dh-golang", "golang-go"}, dependencies...)
