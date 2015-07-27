@@ -84,12 +84,23 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		}
 	}
 
+	if _, err := os.Stat(filepath.Join(tempdir, "src", gopkg, "debian")); err == nil {
+		log.Printf("WARNING: ignoring debian/ directory that came with the upstream sources\n")
+	}
+
 	f, err := ioutil.TempFile("", "dh-make-golang")
 	tempfile := f.Name()
 	f.Close()
 	base := filepath.Base(gopkg)
 	dir := filepath.Dir(gopkg)
-	cmd = exec.Command("tar", "cjf", tempfile, "--exclude-vcs", "--exclude=vendor", base)
+	cmd = exec.Command(
+		"tar",
+		"cjf",
+		tempfile,
+		"--exclude-vcs",
+		"--exclude=vendor",
+		fmt.Sprintf("--exclude=%s/debian", base),
+		base)
 	cmd.Dir = filepath.Join(tempdir, "src", dir)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
