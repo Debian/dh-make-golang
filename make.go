@@ -631,8 +631,9 @@ func main() {
 	}
 
 	golangBinariesMu.RLock()
-	if golangBinaries[debsrc] {
-		log.Printf("WARNING: A package called %q is already in Debian! See https://tracker.debian.org/pkg/%s\n", debsrc, debsrc)
+	if golangBinaries[debsrc+"-dev"] {
+		log.Printf("WARNING: A package called %q is already in Debian! See https://tracker.debian.org/pkg/%s\n",
+			debsrc+"-dev", debsrc+"-dev")
 	}
 	golangBinariesMu.RUnlock()
 
