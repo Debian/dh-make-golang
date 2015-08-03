@@ -335,7 +335,7 @@ func websiteForGopkg(gopkg string) string {
 	return "TODO"
 }
 
-func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string) error {
+func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func writeTemplates(dir, gopkg, debsrc, debversion string, dependencies []string
 	fmt.Fprintf(f, "Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: git://anonscm.debian.org/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Package: %s-dev\n", debsrc)
+	fmt.Fprintf(f, "Package: %s\n", debbin)
 	fmt.Fprintf(f, "Architecture: all\n")
 	deps := append([]string{"${shlibs:Depends}", "${misc:Depends}", "golang-go"}, dependencies...)
 	fmt.Fprintf(f, "Depends: %s\n", strings.Join(deps, ",\n         "))
@@ -615,6 +615,10 @@ func main() {
 		*pkgType = autoPkgType
 		debsrc = debianNameFromGopkg(gopkg, *pkgType)
 	}
+	debbin := debsrc + "-dev"
+	if *pkgType == "program" {
+		debbin = debsrc
+	}
 
 	if _, err := os.Stat(debsrc); err == nil {
 		log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
@@ -631,9 +635,9 @@ func main() {
 	}
 
 	golangBinariesMu.RLock()
-	if golangBinaries[debsrc+"-dev"] {
+	if golangBinaries[debbin] {
 		log.Printf("WARNING: A package called %q is already in Debian! See https://tracker.debian.org/pkg/%s\n",
-			debsrc+"-dev", debsrc+"-dev")
+			debbin, debbin)
 	}
 	golangBinariesMu.RUnlock()
 
@@ -665,7 +669,7 @@ func main() {
 	}
 	golangBinariesMu.RUnlock()
 
-	if err := writeTemplates(dir, gopkg, debsrc, debversion, dependencies); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, dependencies); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
