@@ -98,6 +98,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		"cjf",
 		tempfile,
 		"--exclude-vcs",
+		"--exclude=Godeps",
 		"--exclude=vendor",
 		fmt.Sprintf("--exclude=%s/debian", base),
 		base)
@@ -137,7 +138,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if strings.Contains(line, "/vendor/") {
+		if strings.Contains(line, "/vendor/") || strings.Contains(line, "/Godeps/") {
 			continue
 		}
 		if strings.HasSuffix(line, " main") {
