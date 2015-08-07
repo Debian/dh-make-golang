@@ -138,7 +138,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if strings.Contains(line, "/vendor/") || strings.Contains(line, "/Godeps/") {
+		if strings.Contains(line, "/vendor/") ||
+			strings.Contains(line, "/Godeps/") ||
+			strings.Contains(line, "/samples/") ||
+			strings.Contains(line, "/examples/") {
 			continue
 		}
 		if strings.HasSuffix(line, " main") {
