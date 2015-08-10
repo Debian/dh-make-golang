@@ -389,7 +389,11 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "Vcs-Git: git://anonscm.debian.org/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
-	fmt.Fprintf(f, "Architecture: all\n")
+	if *pkgType == "program" {
+		fmt.Fprintf(f, "Architecture: any\n")
+	} else {
+		fmt.Fprintf(f, "Architecture: all\n")
+	}
 	deps := append([]string{"${shlibs:Depends}", "${misc:Depends}", "golang-go"}, dependencies...)
 	fmt.Fprintf(f, "Depends: %s\n", strings.Join(deps, ",\n         "))
 	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
