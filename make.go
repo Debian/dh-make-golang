@@ -145,7 +145,9 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 			continue
 		}
 		if strings.HasSuffix(line, " main") {
-			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", line[:len(line)-len(" main")])
+			if strings.TrimSpace(*pkgType) == "" {
+				log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", line[:len(line)-len(" main")])
+			}
 			autoPkgType = "program"
 			break
 		}
