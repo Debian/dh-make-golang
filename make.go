@@ -411,7 +411,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
 		longdescription = "TODO: long description"
 	}
-	fmt.Fprintf(f, " %s\n", strings.Replace(strings.Replace(longdescription, "\n\n", "\n.\n", -1), "\n", "\n ", -1))
+	fmt.Fprintf(f, " %s\n", longdescription)
 
 	license, fulltext, err := getLicenseForGopkg(gopkg)
 	if err != nil {
@@ -530,7 +530,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
 		longdescription = "TODO: long description"
 	}
-	fmt.Fprintf(f, " %s\n", strings.Replace(strings.Replace(longdescription, "\n\n", "\n.\n", -1), "\n", "\n ", -1))
+	fmt.Fprintf(f, " %s\n", longdescription)
 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "TODO: perhaps reasoning\n")

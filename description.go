@@ -18,6 +18,14 @@ type readmeReply struct {
 	Name     string `json:"name"`
 }
 
+func reformatForControl(raw string) string {
+	// Reformat the wrapped description to conform to Debian’s control format.
+	for strings.Contains(raw, "\n\n") {
+		raw = strings.Replace(raw, "\n\n", "\n.\n", -1)
+	}
+	return strings.Replace(raw, "\n", "\n ", -1)
+}
+
 func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
 		return "", nil
@@ -57,7 +65,7 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 		!strings.HasSuffix(rr.Name, "markdown") &&
 		!strings.HasSuffix(rr.Name, "mdown") &&
 		!strings.HasSuffix(rr.Name, "mkdn") {
-		return strings.TrimSpace(string(content)), nil
+		return reformatForControl(strings.TrimSpace(string(content))), nil
 	}
 
 	output := blackfriday.Markdown(content, &TextRenderer{}, 0)
@@ -68,7 +76,7 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return reformatForControl(strings.TrimSpace(string(out))), nil
 }
 
 type TextRenderer struct {
