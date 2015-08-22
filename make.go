@@ -693,7 +693,7 @@ func main() {
 	log.Printf("Packaging successfully created in %s\n", dir)
 	log.Printf("\n")
 	log.Printf("Resolve all TODOs in %s, then email it out:\n", itpname)
-	log.Printf("    sendmail -t -f < %s\n", itpname)
+	log.Printf("    sendmail -t < %s\n", itpname)
 	log.Printf("\n")
 	log.Printf("Resolve all the TODOs in debian/, find them using:\n")
 	log.Printf("    grep -r TODO debian\n")
