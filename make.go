@@ -390,6 +390,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "Homepage: %s\n", websiteForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: git://anonscm.debian.org/pkg-go/packages/%s.git\n", debsrc)
+	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
 	if *pkgType == "program" {
@@ -451,8 +452,6 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
-	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "export DH_GOPKG := %s\n", gopkg)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
