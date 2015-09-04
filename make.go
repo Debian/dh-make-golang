@@ -360,7 +360,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 		return err
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "%s (%s) unstable; urgency=medium\n", debsrc, debversion)
+	fmt.Fprintf(f, "%s (%s) UNRELEASED; urgency=medium\n", debsrc, debversion)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "  * Initial release (Closes: TODO)\n")
 	fmt.Fprintf(f, "\n")
