@@ -511,6 +511,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 	fmt.Fprintf(f, "Subject: ITP: %s -- %s\n", debsrc, description)
 	fmt.Fprintf(f, "Content-Type: text/plain; charset=utf-8\n")
 	fmt.Fprintf(f, "Content-Transfer-Encoding: 8bit\n")
+	fmt.Fprintf(f, "X-Debbugs-CC: debian-devel@lists.debian.org, pkg-go-maintainers@lists.alioth.debian.org\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: wnpp\n")
 	fmt.Fprintf(f, "Severity: wishlist\n")
