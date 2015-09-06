@@ -307,7 +307,7 @@ func debianNameFromGopkg(gopkg, t string) string {
 		}
 	}
 	parts[0] = host
-	return "golang-" + strings.ToLower(strings.Join(parts, "-"))
+	return "golang-" + strings.ToLower(strings.Replace(strings.Join(parts, "-"), "_", "-", -1))
 }
 
 func getDebianName() string {
