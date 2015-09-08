@@ -95,7 +95,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	dir := filepath.Dir(gopkg)
 	cmd = exec.Command(
 		"tar",
-		"cjf",
+		"cJf",
 		tempfile,
 		"--exclude-vcs",
 		"--exclude=Godeps",
@@ -653,7 +653,7 @@ func main() {
 	}
 	golangBinariesMu.RUnlock()
 
-	orig := fmt.Sprintf("%s_%s.orig.tar.bz2", debsrc, version)
+	orig := fmt.Sprintf("%s_%s.orig.tar.xz", debsrc, version)
 	// We need to copy the file, merely renaming is not enough since the file
 	// might be on a different filesystem (/tmp often is a tmpfs).
 	if err := copyFile(tempfile, orig); err != nil {
