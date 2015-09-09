@@ -183,6 +183,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		}
 	}
 
+	if len(godependencies) == 0 {
+		return tempfile, version, dependencies, autoPkgType, nil
+	}
+
 	// Remove all packages which are in the standard lib.
 	args := []string{"list", "-f", "{{.ImportPath}}: {{.Standard}}"}
 	args = append(args, godependencies...)
