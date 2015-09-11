@@ -400,12 +400,12 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	deps := []string{"${shlibs:Depends}", "${misc:Depends}"}
 	if *pkgType == "program" {
 		fmt.Fprintf(f, "Architecture: any\n")
+		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	} else {
 		fmt.Fprintf(f, "Architecture: all\n")
 		deps = append(append(deps, "golang-go"), dependencies...)
 	}
 	fmt.Fprintf(f, "Depends: %s\n", strings.Join(deps, ",\n         "))
-	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	description, err := getDescriptionForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
