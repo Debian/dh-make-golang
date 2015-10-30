@@ -236,12 +236,16 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	if err := runGitCommandIn(dir, "config", "user.name", getDebianName()); err != nil {
-		return dir, err
+	if debianName := getDebianName(); debianName != "TODO" {
+		if err := runGitCommandIn(dir, "config", "user.name", debianName); err != nil {
+			return dir, err
+		}
 	}
 
-	if err := runGitCommandIn(dir, "config", "user.email", getDebianEmail()); err != nil {
-		return dir, err
+	if debianEmail := getDebianEmail(); debianEmail != "TODO" {
+		if err := runGitCommandIn(dir, "config", "user.email", debianEmail); err != nil {
+			return dir, err
+		}
 	}
 
 	if err := runGitCommandIn(dir, "config", "push.default", "matching"); err != nil {
@@ -321,7 +325,7 @@ func getDebianName() string {
 	if name := strings.TrimSpace(os.Getenv("DEBNAME")); name != "" {
 		return name
 	}
-	if u, err := user.Current(); err == nil {
+	if u, err := user.Current(); err == nil && u.Name != "" {
 		return u.Name
 	}
 	return "TODO"
@@ -331,9 +335,11 @@ func getDebianEmail() string {
 	if email := strings.TrimSpace(os.Getenv("DEBEMAIL")); email != "" {
 		return email
 	}
-	if mailname, err := ioutil.ReadFile("/etc/mailname"); err == nil {
-		if u, err := user.Current(); err == nil {
-			return u.Name + "@" + strings.TrimSpace(string(mailname))
+	mailname, err := ioutil.ReadFile("/etc/mailname")
+	if err == nil && strings.Contains(string(mailname), ".") {
+		// By default, /etc/mailname contains "debian" which is not useful; check for ".".
+		if u, err := user.Current(); err == nil && u.Username != "" {
+			return u.Username + "@" + strings.TrimSpace(string(mailname))
 		}
 	}
 	return "TODO"
