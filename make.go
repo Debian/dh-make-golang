@@ -336,8 +336,8 @@ func getDebianEmail() string {
 		return email
 	}
 	mailname, err := ioutil.ReadFile("/etc/mailname")
+	// By default, /etc/mailname contains "debian" which is not useful; check for ".".
 	if err == nil && strings.Contains(string(mailname), ".") {
-		// By default, /etc/mailname contains "debian" which is not useful; check for ".".
 		if u, err := user.Current(); err == nil && u.Username != "" {
 			return u.Username + "@" + strings.TrimSpace(string(mailname))
 		}
