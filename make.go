@@ -82,6 +82,23 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		if err := runGitCommandIn(filepath.Join(tempdir, "src", gopkg), "reset", "--hard", *gitRevision); err != nil {
 			log.Fatalf("Could not check out git revision %q: %v\n", revision, err)
 		}
+
+		log.Printf("Refreshing %q\n", gopkg+"/...")
+		done := make(chan bool)
+		go progressSize("go get", filepath.Join(tempdir, "src"), done)
+
+		cmd := exec.Command("go", "get", "-d", "-t", gopkg+"/...")
+		cmd.Stderr = os.Stderr
+		cmd.Env = []string{
+			fmt.Sprintf("GOPATH=%s", tempdir),
+			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+		}
+		if err := cmd.Run(); err != nil {
+			done <- true
+			return "", "", dependencies, autoPkgType, err
+		}
+		done <- true
+		fmt.Printf("\r")
 	}
 
 	if _, err := os.Stat(filepath.Join(tempdir, "src", gopkg, "debian")); err == nil {
