@@ -29,6 +29,10 @@ var (
 		"",
 		"git revision (see gitrevisions(7)) of the specified Go package to check out, defaulting to the default behavior of git clone. Useful in case you do not want to package e.g. current HEAD.")
 
+	gitDescribeMatch = flag.String("git_describe_match",
+		"",
+		"The match 'glob' for use by 'git describe --match' to isolate a specific revision tag when there are other tags present. The parameter can be specified like 'v*' or v2.6' or even 'VsN2.2'.  All leading letters will be stripped from the returned version")
+
 	allowUnknownHoster = flag.Bool("allow_unknown_hoster",
 		false,
 		"The pkg-go naming conventions (see http://pkg-go.alioth.debian.org/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
@@ -131,7 +135,8 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 
 	log.Printf("Determining upstream version number\n")
 
-	version, err := pkgVersionFromGit(filepath.Join(tempdir, "src", gopkg))
+	describeGlob := strings.TrimSpace(*gitDescribeMatch)
+	version, err := pkgVersionFromGit(filepath.Join(tempdir, "src", gopkg), describeGlob)
 	if err != nil {
 		return "", "", dependencies, autoPkgType, err
 	}

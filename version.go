@@ -14,10 +14,26 @@ import (
 var (
 	// describeRegexp parses the count and revision part of the “git describe --long” output.
 	describeRegexp = regexp.MustCompile(`-(\d+)-g([0-9a-f]+)\s*$`)
+	lettersRegexp  = regexp.MustCompile(`^[a-zA-Z]*`)
 )
 
 // TODO: also support other VCS
-func pkgVersionFromGit(gitdir string) (string, error) {
+func pkgVersionFromGit(gitdir string, matchGlob string) (string, error) {
+
+	if "" != matchGlob {
+		// pos[1] will be the length of alphabetic prefix
+		pos := lettersRegexp.FindStringIndex(matchGlob)
+		cmd := exec.Command("git", "describe", "--match", matchGlob)
+		cmd.Dir = gitdir
+		if tag, err := cmd.Output(); nil == err {
+			version := strings.TrimSpace(string(tag))
+			version = version[pos[1]:]
+			if len(version) > 0 {
+				return version, nil
+			}
+		}
+	}
+
 	cmd := exec.Command("git", "describe", "--exact-match")
 	cmd.Dir = gitdir
 	if tag, err := cmd.Output(); err == nil {
