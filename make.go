@@ -505,7 +505,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, distribution string,
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
-	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
+
 	if (ignoreTests) {
 		fmt.Fprintf(f, "\noverride_dh_auto_test:\n")
 	}
