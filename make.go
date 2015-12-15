@@ -209,6 +209,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	args = append(args, godependencies...)
 
 	cmd = exec.Command("go", args...)
+	cmd.Dir = filepath.Join(tempdir, "src", gopkg)
 	cmd.Stderr = os.Stderr
 	cmd.Env = []string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
