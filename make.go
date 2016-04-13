@@ -38,6 +38,26 @@ var (
 		"One of \"library\" or \"program\"")
 )
 
+func passthroughEnv() []string {
+	var relevantVariables = []string{
+		"HOME",
+		"PATH",
+		"HTTP_PROXY", "http_proxy",
+		"HTTPS_PROXY", "https_proxy",
+		"ALL_PROXY", "all_proxy",
+		"NO_PROXY", "no_proxy",
+		"GIT_PROXY_COMMAND",
+		"GIT_HTTP_PROXY_AUTHMETHOD",
+	}
+	var result []string
+	for _, variable := range relevantVariables {
+		if value, ok := os.LookupEnv(variable); ok {
+			result = append(result, fmt.Sprintf("%s=%s", variable, value))
+		}
+	}
+	return result
+}
+
 // TODO: refactor this function into multiple smaller ones. Currently all the
 // code is in this function only due to the os.RemoveAll(tempdir).
 func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, string, error) {
@@ -65,10 +85,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	// in the top level of that repository.
 	cmd := exec.Command("go", "get", "-d", "-t", gopkg+"/...")
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{
+	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
-		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-	}
+	}, passthroughEnv()...)
+
 	if err := cmd.Run(); err != nil {
 		done <- true
 		return "", "", dependencies, autoPkgType, err
@@ -89,10 +109,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 
 		cmd := exec.Command("go", "get", "-d", "-t", gopkg+"/...")
 		cmd.Stderr = os.Stderr
-		cmd.Env = []string{
+		cmd.Env = append([]string{
 			fmt.Sprintf("GOPATH=%s", tempdir),
-			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-		}
+		}, passthroughEnv()...)
+
 		if err := cmd.Run(); err != nil {
 			done <- true
 			return "", "", dependencies, autoPkgType, err
@@ -143,10 +163,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	log.Printf("Determining package type\n")
 	cmd = exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Name}}", gopkg+"/...")
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{
+	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
-		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-	}
+	}, passthroughEnv()...)
+
 	out, err := cmd.Output()
 	if err != nil {
 		return "", "", dependencies, autoPkgType, err
@@ -175,10 +195,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 
 	cmd = exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", gopkg+"/...")
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{
+	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
-		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-	}
+	}, passthroughEnv()...)
+
 	out, err = cmd.Output()
 	if err != nil {
 		return "", "", dependencies, autoPkgType, err
@@ -211,10 +231,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	cmd = exec.Command("go", args...)
 	cmd.Dir = filepath.Join(tempdir, "src", gopkg)
 	cmd.Stderr = os.Stderr
-	cmd.Env = []string{
+	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
-		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-	}
+	}, passthroughEnv()...)
+
 	out, err = cmd.Output()
 	if err != nil {
 		return "", "", dependencies, autoPkgType, err
