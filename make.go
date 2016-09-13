@@ -320,12 +320,43 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 	return dir, nil
 }
 
+// normalize program/source name into Debian standard[1]
+// https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Source
+// Package names (both source and binary, see Package, Section 5.6.7) must
+// consist only of lower case letters (a-z), digits (0-9), plus (+) and minus
+// (-) signs, and periods (.). They must be at least two characters long and
+// must start with an alphanumeric character.
+func normalizeDebianProgramName(str string) string {
+	lowerDigitPlusMinusDot := func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z' || '0' <= r && r <= '9':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		case r == '.' || r == '+' || r == '-':
+			return r
+		case r == '_':
+			return '-'
+		}
+		return -1
+	}
+
+	safe := strings.Trim(strings.Map(lowerDigitPlusMinusDot, str), "-")
+	if len(safe) < 2 {
+		return "TODO"
+	}
+
+	return safe
+}
+
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
 func debianNameFromGopkg(gopkg, t string) string {
 	parts := strings.Split(gopkg, "/")
+
 	if t == "program" {
-		return parts[len(parts)-1]
+		return normalizeDebianProgramName(parts[len(parts)-1])
 	}
+
 	host := parts[0]
 	if host == "github.com" {
 		host = "github"
@@ -353,7 +384,7 @@ func debianNameFromGopkg(gopkg, t string) string {
 		}
 	}
 	parts[0] = host
-	return "golang-" + strings.ToLower(strings.Replace(strings.Join(parts, "-"), "_", "-", -1))
+	return strings.Trim("golang-"+strings.ToLower(strings.Replace(strings.Join(parts, "-"), "_", "-", -1)), "-")
 }
 
 func getDebianName() string {
