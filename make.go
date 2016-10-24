@@ -362,6 +362,8 @@ func debianNameFromGopkg(gopkg, t string) string {
 		host = "github"
 	} else if host == "code.google.com" {
 		host = "googlecode"
+	} else if host == "cloud.google.com" {
+		host = "googlecloud"
 	} else if host == "gopkg.in" {
 		host = "gopkg"
 	} else if host == "golang.org" {
