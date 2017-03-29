@@ -126,26 +126,25 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	}
 
 	vendorpath := filepath.Join(tempdir, "src", gopkg, "vendor")
-
-	if _, err := os.Stat(vendorpath); err == nil {
-		files, _ := filepath.Glob(filepath.Join(vendorpath, "*.go"))
-		if len(files) == 0 {
-			log.Printf("WARNING: ignoring vendor/ directory that came with the upstream sources, and reinstalling dependencies\n")
-			os.RemoveAll(vendorpath)
-			go progressSize("go get", filepath.Join(tempdir, "src"), done)
-			cmd := exec.Command("go", "get", "-d", "-t", "./...")
-			cmd.Stderr = os.Stderr
-			cmd.Env = append([]string{
-				fmt.Sprintf("GOPATH=%s", tempdir),
-			}, passthroughEnv()...)
-			cmd.Dir = filepath.Join(tempdir, "src", gopkg)
-			if err := cmd.Run(); err != nil {
-				done <- true
-				return "", "", dependencies, autoPkgType, err
-			}
-			done <- true
-			fmt.Printf("\r")
+	if fi, err := os.Stat(vendorpath); err == nil && fi.IsDir() {
+		log.Printf("Deleting upstream vendor/ directory, installing remaining dependencies")
+		if err := os.RemoveAll(vendorpath); err != nil {
+			return "", "", dependencies, autoPkgType, err
 		}
+		done := make(chan bool)
+		go progressSize("go get", filepath.Join(tempdir, "src"), done)
+		cmd := exec.Command("go", "get", "-d", "-t", "./...")
+		cmd.Stderr = os.Stderr
+		cmd.Env = append([]string{
+			fmt.Sprintf("GOPATH=%s", tempdir),
+		}, passthroughEnv()...)
+		cmd.Dir = filepath.Join(tempdir, "src", gopkg)
+		if err := cmd.Run(); err != nil {
+			done <- true
+			return "", "", dependencies, autoPkgType, err
+		}
+		done <- true
+		fmt.Printf("\r")
 	}
 
 	f, err := ioutil.TempFile("", "dh-make-golang")
