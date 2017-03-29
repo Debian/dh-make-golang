@@ -125,6 +125,29 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		log.Printf("WARNING: ignoring debian/ directory that came with the upstream sources\n")
 	}
 
+	vendorpath := filepath.Join(tempdir, "src", gopkg, "vendor")
+
+	if _, err := os.Stat(vendorpath); err == nil {
+		files, _ := filepath.Glob(filepath.Join(vendorpath, "*.go"))
+		if len(files) == 0 {
+			log.Printf("WARNING: ignoring vendor/ directory that came with the upstream sources, and reinstalling dependencies\n")
+			os.RemoveAll(vendorpath)
+			go progressSize("go get", filepath.Join(tempdir, "src"), done)
+			cmd := exec.Command("go", "get", "-d", "-t", "./...")
+			cmd.Stderr = os.Stderr
+			cmd.Env = append([]string{
+				fmt.Sprintf("GOPATH=%s", tempdir),
+			}, passthroughEnv()...)
+			cmd.Dir = filepath.Join(tempdir, "src", gopkg)
+			if err := cmd.Run(); err != nil {
+				done <- true
+				return "", "", dependencies, autoPkgType, err
+			}
+			done <- true
+			fmt.Printf("\r")
+		}
+	}
+
 	f, err := ioutil.TempFile("", "dh-make-golang")
 	tempfile := f.Name()
 	f.Close()
@@ -136,7 +159,6 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 		tempfile,
 		"--exclude-vcs",
 		"--exclude=Godeps",
-		"--exclude=vendor",
 		fmt.Sprintf("--exclude=%s/debian", base),
 		base)
 	cmd.Dir = filepath.Join(tempdir, "src", dir)
