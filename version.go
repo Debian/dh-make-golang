@@ -14,11 +14,29 @@ import (
 var (
 	// describeRegexp parses the count and revision part of the “git describe --long” output.
 	describeRegexp = regexp.MustCompile(`-(\d+)-g([0-9a-f]+)\s*$`)
+
+	// in --match=S the 'S' is a glob _not_ a regexp
+	// exmples: *  1.2  1.2.34  1.*  19.*.5
+	// the 'v' prefix is optional and will be assumed if not supplied
+	matchGlobRegexp = regexp.MustCompile(`^v?([*]|[0-9]+)([.]([*]|[0-9]+))*$`)
 )
 
 // TODO: also support other VCS
-func pkgVersionFromGit(gitdir string) (string, error) {
-	cmd := exec.Command("git", "describe", "--exact-match")
+func pkgVersionFromGit(gitdir string, matchGlob string) (string, error) {
+
+	describe := []string{"describe", "--exact-match"}
+	if "" != matchGlob {
+		ok := matchGlobRegexp.Match([]byte(matchGlob))
+		if !ok {
+			return "", fmt.Errorf("matchGlob: %q is invalid", matchGlob)
+		}
+		if 'v' != matchGlob[0] {
+			matchGlob = "v" + matchGlob
+		}
+		describe = []string{"describe", "--match", matchGlob}
+	}
+
+	cmd := exec.Command("git", describe...)
 	cmd.Dir = gitdir
 	if tag, err := cmd.Output(); err == nil {
 		version := strings.TrimSpace(string(tag))
