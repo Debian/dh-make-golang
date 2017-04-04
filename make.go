@@ -29,6 +29,18 @@ var (
 		"",
 		"git revision (see gitrevisions(7)) of the specified Go package to check out, defaulting to the default behavior of git clone. Useful in case you do not want to package e.g. current HEAD.")
 
+	gitDescribeMatch = flag.String("git_describe_match",
+		"",
+		"The match 'glob' for use by 'git describe --match' to isolate a specific revision tag when there are other tags present. The parameter can be specified like 'v*' or v2.6' or even 'VsN2.2'.  All leading letters will be stripped from the returned version")
+
+	forceDistribution = flag.String("force_distribution",
+		"",
+		"Forces distribution to be set as the argument instead of the default 'UNSTABLE'")
+
+	ignoreTests = flag.Bool("ignore_tests",
+		false,
+		"ignore the test dependencies and add code to debian/rules to supress test execution")
+
 	allowUnknownHoster = flag.Bool("allow_unknown_hoster",
 		false,
 		"The pkg-go naming conventions (see http://pkg-go.alioth.debian.org/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
@@ -60,7 +72,7 @@ func passthroughEnv() []string {
 
 // TODO: refactor this function into multiple smaller ones. Currently all the
 // code is in this function only due to the os.RemoveAll(tempdir).
-func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, string, error) {
+func makeUpstreamSourceTarball(gopkg string, ignoreTests bool) (string, string, map[string]bool, string, error) {
 	// dependencies is a map in order to de-duplicate multiple imports
 	// pointing into the same repository.
 	dependencies := make(map[string]bool)
@@ -172,7 +184,8 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 
 	log.Printf("Determining upstream version number\n")
 
-	version, err := pkgVersionFromGit(filepath.Join(tempdir, "src", gopkg))
+	describeGlob := strings.TrimSpace(*gitDescribeMatch)
+	version, err := pkgVersionFromGit(filepath.Join(tempdir, "src", gopkg), describeGlob)
 	if err != nil {
 		return "", "", dependencies, autoPkgType, err
 	}
@@ -214,7 +227,12 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 
 	log.Printf("Determining dependencies\n")
 
-	cmd = exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", gopkg+"/...")
+	importTemplate := "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}"
+	if ignoreTests {
+		importTemplate = `{{join .Imports "\n"}}`
+	}
+
+	cmd = exec.Command("go", "list", "-f", importTemplate, gopkg+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", tempdir),
@@ -444,7 +462,7 @@ func websiteForGopkg(gopkg string) string {
 	return "TODO"
 }
 
-func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies []string) error {
+func writeTemplates(dir, gopkg, debsrc, debbin, debversion, distribution string, dependencies []string, ignoreTests bool) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -458,7 +476,11 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 		return err
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "%s (%s) UNRELEASED; urgency=medium\n", debsrc, debversion)
+
+	if "" == distribution {
+		distribution = "UNRELEASED"
+	}
+	fmt.Fprintf(f, "%s (%s) %s; urgency=medium\n", debsrc, debversion, distribution)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "  * Initial release (Closes: TODO)\n")
 	fmt.Fprintf(f, "\n")
@@ -558,6 +580,10 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
+
+	if (ignoreTests) {
+		fmt.Fprintf(f, "\noverride_dh_auto_test:\n")
+	}
 
 	f, err = os.Create(filepath.Join(dir, "debian", "source", "format"))
 	if err != nil {
@@ -732,7 +758,7 @@ func main() {
 		golangBinariesMu.Unlock()
 	}()
 
-	tempfile, version, debdependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg)
+	tempfile, version, debdependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg, *ignoreTests)
 	if err != nil {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
@@ -795,7 +821,7 @@ func main() {
 	}
 	golangBinariesMu.RUnlock()
 
-	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, dependencies); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, *forceDistribution, dependencies, *ignoreTests); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
