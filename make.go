@@ -493,6 +493,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
+	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
 	deps := []string{"${shlibs:Depends}", "${misc:Depends}"}
