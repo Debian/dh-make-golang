@@ -537,6 +537,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Source: %s\n", websiteForGopkg(gopkg))
+	fmt.Fprintf(f, "Files-Excluded: vendor Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files: *\n")
 	fmt.Fprintf(f, "Copyright: %s\n", copyright)
