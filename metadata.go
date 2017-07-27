@@ -138,7 +138,14 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 		return "", "", err
 	}
 
-	return ur.Name, creation.Format("2006") + " " + ur.Name, nil
+	copyright := creation.Format("2006") + " " + ur.Name
+	if strings.HasPrefix(gopkg, "github.com/google/") {
+		// As per https://opensource.google.com/docs/creating/, Google retains
+		// the copyright for repositories underneath github.com/google/.
+		copyright = creation.Format("2006") + " Google Inc."
+	}
+
+	return ur.Name, copyright, nil
 }
 
 func getDescriptionForGopkg(gopkg string) (string, error) {
