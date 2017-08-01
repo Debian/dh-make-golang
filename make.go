@@ -51,7 +51,8 @@ func passthroughEnv() []string {
 	}
 	var result []string
 	for _, variable := range relevantVariables {
-		if value, ok := os.LookupEnv(variable); ok {
+		value := os.Getenv(variable);
+		if (value != "") {
 			result = append(result, fmt.Sprintf("%s=%s", variable, value))
 		}
 	}
