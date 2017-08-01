@@ -18,7 +18,7 @@ var (
 
 // TODO: also support other VCS
 func pkgVersionFromGit(gitdir string) (string, error) {
-	cmd := exec.Command("git", "describe", "--exact-match")
+	cmd := exec.Command("git", "describe", "--exact-match", "--tags")
 	cmd.Dir = gitdir
 	if tag, err := cmd.Output(); err == nil {
 		version := strings.TrimSpace(string(tag))
