@@ -51,7 +51,7 @@ var githubLicenseToDebianLicense = map[string]string{
 	"lgpl-2.1": "LGPL-2.1",
 	"lgpl-3.0": "LGPL-3.0",
 	//"mit" - expat?
-	//"mpl-2.0" (only 1.1 is in debian)
+	"mpl-2.0": "MPL-2.0", // include in base-files >= 9.9
 	//"unlicense" (not in debian)
 }
 
@@ -70,6 +70,13 @@ var debianLicenseText = map[string]string{
  .
  On Debian systems, the complete text of the Apache version 2.0 license
  can be found in "/usr/share/common-licenses/Apache-2.0".
+`,
+	"MPL-2.0": ` This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ .
+ On Debian systems, the complete text of the MPL-2.0 license can be found
+ in "/usr/share/common-licenses/MPL-2.0".
 `,
 }
 
