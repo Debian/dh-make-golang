@@ -12,7 +12,7 @@ import (
 
 var (
 	// describeRegexp parses the count and revision part of the “git describe --long” output.
-	describeRegexp = regexp.MustCompile(`-(\d+)-g([0-9a-f]+)\s*$`)
+	describeRegexp = regexp.MustCompile(`-\d+-g([0-9a-f]+)\s*$`)
 )
 
 // TODO: also support other VCS
@@ -68,10 +68,9 @@ func pkgVersionFromGit(gitdir string) (string, error) {
 	if submatches == nil {
 		return "", fmt.Errorf("git describe output %q does not match expected format", string(describeBytes))
 	}
-	version := fmt.Sprintf("%sgit%s.%s.%s",
+	version := fmt.Sprintf("%sgit%s.%s",
 		lastTag,
 		time.Unix(lastCommitUnix, 0).UTC().Format("20060102"),
-		string(submatches[1]),
-		string(submatches[2]))
+		string(submatches[1]))
 	return version, nil
 }

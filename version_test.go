@@ -46,8 +46,8 @@ func TestSnapshotVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Determining package version from git failed: %v", err)
 	}
-	if want := "0.0~git20150420.0."; !strings.HasPrefix(got, want) {
-		t.Logf("got %q, want %q", got, want)
+	if want := "0.0~git20150420."; !strings.HasPrefix(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	gitCmdOrFatal(t, tempdir, "tag", "-a", "v1", "-m", "release v1")
