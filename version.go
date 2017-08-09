@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -18,7 +17,7 @@ var (
 
 // TODO: also support other VCS
 func pkgVersionFromGit(gitdir string) (string, error) {
-	cmd := exec.Command("git", "describe", "--exact-match")
+	cmd := exec.Command("git", "describe", "--exact-match", "--tags")
 	cmd.Dir = gitdir
 	if tag, err := cmd.Output(); err == nil {
 		version := strings.TrimSpace(string(tag))
@@ -46,38 +45,7 @@ func pkgVersionFromGit(gitdir string) (string, error) {
 	// https://www.debian.org/doc/manuals/maint-guide/first.en.html#namever
 	lastTag := "0.0~"
 	if lastTagBytes, err := cmd.Output(); err == nil {
-		lastTag = strings.TrimSpace(string(lastTagBytes))
-
-		// Compare with the most recent annotated tag
-		foundLightweightTag := false
-		cmd = exec.Command("git", "describe", "--abbrev=0")
-		cmd.Dir = gitdir
-		if lastAnnotatedTagBytes, err := cmd.Output(); err == nil {
-			lastAnnotatedTag := strings.TrimSpace(string(lastAnnotatedTagBytes))
-			if lastTag != lastAnnotatedTag {
-				log.Printf("WARNING: Lightweight tag %q found, but the most recent annotated tag is %q\n", lastTag, lastAnnotatedTag)
-				foundLightweightTag = true
-			}
-		} else {
-			log.Printf("WARNING: Annotated tag not found, using lightweight tag %q\n", lastTag)
-			foundLightweightTag = true
-		}
-
-		if foundLightweightTag {
-			log.Printf("    Lightweight tags (created by e.g. \"git tag %s\"", lastTag)
-			log.Printf("    with no flag) are problematic because, among other\n")
-			log.Printf("    things, they are ignored by \"git describe\" by default.\n")
-			log.Printf("    Please suggest that the upstream replaces the\n")
-			log.Printf("    lightweight tags with annotated ones.  See\n")
-			log.Printf("    https://github.com/russross/blackfriday/issues/196\n")
-			log.Printf("    for details.\n")
-			log.Printf("\n")
-		}
-
-		lastTag += "+"
-		if strings.HasPrefix(lastTag, "v") {
-			lastTag = lastTag[1:]
-		}
+		lastTag = strings.TrimPrefix(strings.TrimSpace(string(lastTagBytes)), "v") + "+"
 	}
 
 	// This results in an output like 4.10.2-232-g9f107c8
