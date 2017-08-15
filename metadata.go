@@ -231,3 +231,11 @@ func getDescriptionForGopkg(gopkg string) (string, error) {
 
 	return strings.TrimSpace(rr.Description), nil
 }
+
+func getHomepageForGopkg(gopkg string) string {
+	repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		return "TODO"
+	}
+	return "https://github.com/" + repo
+}

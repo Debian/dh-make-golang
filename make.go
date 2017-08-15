@@ -437,13 +437,6 @@ func getDebianEmail() string {
 	return "TODO"
 }
 
-func websiteForGopkg(gopkg string) string {
-	if strings.HasPrefix(gopkg, "github.com/") {
-		return "https://" + gopkg
-	}
-	return "TODO"
-}
-
 func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
@@ -489,7 +482,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	builddeps := append([]string{"debhelper (>= 10)", "dh-golang", "golang-any"}, dependencies...)
 	fmt.Fprintf(f, "Build-Depends: %s\n", strings.Join(builddeps, ",\n               "))
 	fmt.Fprintf(f, "Standards-Version: 4.0.0\n")
-	fmt.Fprintf(f, "Homepage: %s\n", websiteForGopkg(gopkg))
+	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
@@ -536,7 +529,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	}
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
-	fmt.Fprintf(f, "Source: %s\n", websiteForGopkg(gopkg))
+	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Files-Excluded: vendor Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files: *\n")
@@ -636,7 +629,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 	fmt.Fprintf(f, "* Package name    : %s\n", debsrc)
 	fmt.Fprintf(f, "  Version         : %s\n", debversion)
 	fmt.Fprintf(f, "  Upstream Author : %s\n", author)
-	fmt.Fprintf(f, "* URL             : %s\n", websiteForGopkg(gopkg))
+	fmt.Fprintf(f, "* URL             : %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "* License         : %s\n", license)
 	fmt.Fprintf(f, "  Programming Lang: Go\n")
 	fmt.Fprintf(f, "  Description     : %s\n", description)
