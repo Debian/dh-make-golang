@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 type licensesReply struct {
@@ -80,12 +83,66 @@ var debianLicenseText = map[string]string{
 `,
 }
 
+var githubRegexp = regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
+
+func findGitHubRepo(gopkg string) (string, error) {
+	if strings.HasPrefix(gopkg, "github.com/") {
+		return strings.TrimPrefix(gopkg, "github.com/"), nil
+	}
+	resp, err := http.Get("https://" + gopkg + "?go-get=1")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	z := html.NewTokenizer(resp.Body)
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			return "", fmt.Errorf("%q is not on GitHub", gopkg)
+		}
+		token := z.Token()
+		if token.Data != "meta" {
+			continue
+		}
+		var meta struct {
+			name, content string
+		}
+		for _, attr := range token.Attr {
+			if attr.Key == "name" {
+				meta.name = attr.Val
+			}
+			if attr.Key == "content" {
+				meta.content = attr.Val
+			}
+		}
+
+		match := func(name string, length int) string {
+			if f := strings.Fields(meta.content); meta.name == name && len(f) == length {
+				if f[0] != gopkg {
+					return ""
+				}
+				if repoMatch := githubRegexp.FindStringSubmatch(f[2]); repoMatch != nil {
+					return repoMatch[1]
+				}
+			}
+			return ""
+		}
+		if repo := match("go-import", 3); repo != "" {
+			return repo, nil
+		}
+		if repo := match("go-source", 4); repo != "" {
+			return repo, nil
+		}
+	}
+}
+
 func getLicenseForGopkg(gopkg string) (string, string, error) {
-	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", "", fmt.Errorf("%q is not on GitHub", gopkg)
+	repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		return "", "", err
 	}
 	// TODO: cache this reply
-	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+gopkg[len("github.com/"):], nil)
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+repo, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -111,10 +168,11 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 }
 
 func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
-	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", "", fmt.Errorf("%q is not on GitHub", gopkg)
+	repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		return "", "", err
 	}
-	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
+	resp, err := http.Get("https://api.github.com/repos/" + repo)
 	if err != nil {
 		return "", "", err
 	}
@@ -146,7 +204,7 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 	}
 
 	copyright := creation.Format("2006") + " " + ur.Name
-	if strings.HasPrefix(gopkg, "github.com/google/") {
+	if strings.HasPrefix(repo, "google/") {
 		// As per https://opensource.google.com/docs/creating/, Google retains
 		// the copyright for repositories underneath github.com/google/.
 		copyright = creation.Format("2006") + " Google Inc."
@@ -156,10 +214,11 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 }
 
 func getDescriptionForGopkg(gopkg string) (string, error) {
-	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", fmt.Errorf("%q is not on GitHub", gopkg)
+	repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		return "", err
 	}
-	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):])
+	resp, err := http.Get("https://api.github.com/repos/" + repo)
 	if err != nil {
 		return "", err
 	}
