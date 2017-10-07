@@ -481,7 +481,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	sort.Strings(dependencies)
 	builddeps := append([]string{"debhelper (>= 10)", "dh-golang", "golang-any"}, dependencies...)
 	fmt.Fprintf(f, "Build-Depends: %s\n", strings.Join(builddeps, ",\n               "))
-	fmt.Fprintf(f, "Standards-Version: 4.1.0\n")
+	fmt.Fprintf(f, "Standards-Version: 4.1.1\n")
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://anonscm.debian.org/cgit/pkg-go/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://anonscm.debian.org/git/pkg-go/packages/%s.git\n", debsrc)
