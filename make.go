@@ -818,5 +818,6 @@ func main() {
 	log.Printf("    ssh git.debian.org \"/git/pkg-go/setup-repository %s 'Packaging for %s'\"\n", debsrc, debsrc)
 	log.Printf("\n")
 	log.Printf("Once you are happy with your packaging, push it to alioth using:\n")
-	log.Printf("    git push git+ssh://git.debian.org/git/pkg-go/packages/%s.git --tags master pristine-tar upstream\n", debsrc)
+	log.Printf("    git remote set-url origin git+ssh://git.debian.org/git/pkg-go/packages/%s.git\n", debsrc)
+	log.Printf("    gbp push\n")
 }
