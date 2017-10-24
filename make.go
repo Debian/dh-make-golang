@@ -679,6 +679,12 @@ func main() {
 	}
 
 	gopkg := flag.Arg(0)
+
+	// Ensure the specified argument is a Go package import path.
+	if _, err := vcs.RepoRootForImportPath(gopkg, false); err != nil {
+		log.Fatalf("Verifying arguments: %v — did you specify a Go package import path?", err)
+	}
+
 	debsrc := debianNameFromGopkg(gopkg, "library")
 
 	if strings.TrimSpace(*pkgType) != "" {
