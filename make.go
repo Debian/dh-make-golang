@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,15 +14,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/net/publicsuffix"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/vcs"
 )
 
 const (
-	golangBinariesURL = "https://people.debian.org/~stapelberg/dh-make-golang/binary-amd64-grep-golang"
+	golangBinariesURL = "https://api.ftp-master.debian.org/binary/by_metadata/Go-Import-Path"
 )
 
 var (
@@ -268,7 +269,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 			if err != nil {
 				log.Printf("Could not determine repo path for import path %q: %v\n", importpath, err)
 			}
-			dependencies[debianNameFromGopkg(rr.Root, "library")+"-dev"] = true
+			dependencies[rr.Root] = true
 		}
 	}
 	return tempfile, version, dependencies, autoPkgType, nil
@@ -705,37 +706,37 @@ func main() {
 			gopkg, strings.ToLower(gopkg))
 	}
 
-	golangBinaries := make(map[string]bool)
-	var golangBinariesMu sync.RWMutex
+	var (
+		eg             errgroup.Group
+		golangBinaries = make(map[string]string) // map[goImportPath]debianBinaryPackage
+	)
 
 	// TODO: also check whether there already is a git repository on alioth.
-	go func() {
+	eg.Go(func() error {
 		resp, err := http.Get(golangBinariesURL)
 		if err != nil {
-			log.Printf("Cannot do duplicate check: could not download %q: %v\n", golangBinariesURL, err)
-			return
+			return fmt.Errorf("getting %q: %v", golangBinariesURL)
 		}
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Cannot do duplicate check: could not download %q: status %v\n", golangBinariesURL, resp.Status)
-			return
+		if got, want := resp.StatusCode, http.StatusOK; got != want {
+			return fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
 		}
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Cannot do duplicate check: could not download %q: reading response: %v\n", golangBinariesURL, err)
-			return
+		var pkgs []struct {
+			Binary     string `json:"binary"`
+			ImportPath string `json:"metadata_value"`
+			Source     string `json:"source"`
 		}
-		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-		golangBinariesMu.Lock()
-		for _, line := range lines {
-			if strings.HasPrefix(line, "Package: ") {
-				line = line[len("Package: "):]
+		if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
+			return err
+		}
+		for _, pkg := range pkgs {
+			if !strings.HasSuffix(pkg.Binary, "-dev") {
+				continue // skip -dbgsym packages etc.
 			}
-			golangBinaries[line] = true
+			golangBinaries[pkg.ImportPath] = pkg.Binary
 		}
-		golangBinariesMu.Unlock()
-	}()
-
-	tempfile, version, debdependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg)
+		return nil
+	})
+	tempfile, version, godependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg)
 	if err != nil {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
@@ -753,22 +754,23 @@ func main() {
 		log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 	}
 
-	dependencies := make([]string, len(debdependencies))
-	i := 0
-	for root := range debdependencies {
-		if root == debsrc+"-dev" {
+	// TODO: move this into makeUpstreamSourceTarball
+	dependencies := make([]string, 0, len(godependencies))
+	for dep := range godependencies {
+		if dep == gopkg {
 			continue
 		}
-		dependencies[i] = root
-		i++
+		dependencies = append(dependencies, dep)
 	}
 
-	golangBinariesMu.RLock()
-	if golangBinaries[debbin] {
+	if err := eg.Wait(); err != nil {
+		log.Printf("Could not check for existing Go packages in Debian: %v", err)
+	}
+
+	if debbin, ok := golangBinaries[gopkg]; ok {
 		log.Printf("WARNING: A package called %q is already in Debian! See https://tracker.debian.org/pkg/%s\n",
 			debbin, debbin)
 	}
-	golangBinariesMu.RUnlock()
 
 	orig := fmt.Sprintf("%s_%s.orig.tar.xz", debsrc, version)
 	// We need to copy the file, merely renaming is not enough since the file
@@ -787,18 +789,22 @@ func main() {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
 
-	golangBinariesMu.RLock()
-	if len(golangBinaries) > 0 {
-		for _, dep := range dependencies {
-			if golangBinaries[dep] {
-				continue
-			}
-			log.Printf("Build-Dependency %q is not yet available in Debian\n", dep)
+	debdependencies := make([]string, 0, len(dependencies))
+	for _, dep := range dependencies {
+		if len(golangBinaries) == 0 {
+			// fall back to heuristic
+			debdependencies = append(debdependencies, debianNameFromGopkg(dep, "library")+"-dev")
+			continue
 		}
+		bin, ok := golangBinaries[dep]
+		if !ok {
+			log.Printf("Build-Dependency %q is not yet available in Debian, or has not yet been converted to use XS-Go-Import-Path in debian/control", dep)
+			continue
+		}
+		debdependencies = append(debdependencies, bin)
 	}
-	golangBinariesMu.RUnlock()
 
-	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, dependencies); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, debdependencies); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
