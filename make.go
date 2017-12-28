@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -19,24 +17,6 @@ import (
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/vcs"
-)
-
-const (
-	golangBinariesURL = "https://api.ftp-master.debian.org/binary/by_metadata/Go-Import-Path"
-)
-
-var (
-	gitRevision = flag.String("git_revision",
-		"",
-		"git revision (see gitrevisions(7)) of the specified Go package to check out, defaulting to the default behavior of git clone. Useful in case you do not want to package e.g. current HEAD.")
-
-	allowUnknownHoster = flag.Bool("allow_unknown_hoster",
-		false,
-		"The pkg-go naming conventions (see http://pkg-go.alioth.debian.org/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
-
-	pkgType = flag.String("type",
-		"",
-		"One of \"library\" or \"program\"")
 )
 
 func passthroughEnv() []string {
@@ -61,7 +41,7 @@ func passthroughEnv() []string {
 
 // TODO: refactor this function into multiple smaller ones. Currently all the
 // code is in this function only due to the os.RemoveAll(tempdir).
-func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, string, error) {
+func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string) (string, string, map[string]bool, string, error) {
 	// dependencies is a map in order to de-duplicate multiple imports
 	// pointing into the same repository.
 	dependencies := make(map[string]bool)
@@ -97,10 +77,10 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 	done <- true
 	fmt.Printf("\r")
 
-	revision := strings.TrimSpace(*gitRevision)
+	revision := strings.TrimSpace(gitRevision)
 	if revision != "" {
 		log.Printf("Checking out git revision %q\n", revision)
-		if err := runGitCommandIn(filepath.Join(tempdir, "src", gopkg), "reset", "--hard", *gitRevision); err != nil {
+		if err := runGitCommandIn(filepath.Join(tempdir, "src", gopkg), "reset", "--hard", gitRevision); err != nil {
 			log.Fatalf("Could not check out git revision %q: %v\n", revision, err)
 		}
 
@@ -205,7 +185,7 @@ func makeUpstreamSourceTarball(gopkg string) (string, string, map[string]bool, s
 			continue
 		}
 		if strings.HasSuffix(line, " main") {
-			if strings.TrimSpace(*pkgType) == "" {
+			if strings.TrimSpace(pkgType) == "" {
 				log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", line[:len(line)-len(" main")])
 			}
 			autoPkgType = "program"
@@ -372,7 +352,7 @@ func normalizeDebianProgramName(str string) string {
 }
 
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
-func debianNameFromGopkg(gopkg, t string) string {
+func debianNameFromGopkg(gopkg, t string, allowUnknownHoster bool) string {
 	parts := strings.Split(gopkg, "/")
 
 	if t == "program" {
@@ -401,7 +381,7 @@ func debianNameFromGopkg(gopkg, t string) string {
 	} else if host == "howett.net" {
 		host = "howett"
 	} else {
-		if *allowUnknownHoster {
+		if allowUnknownHoster {
 			suffix, _ := publicsuffix.PublicSuffix(host)
 			host = host[:len(host)-len(suffix)-len(".")]
 			log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, parts[0], os.Args[0])
@@ -440,7 +420,7 @@ func getDebianEmail() string {
 	return "TODO"
 }
 
-func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies []string) error {
+func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, dependencies []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -493,7 +473,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion string, dependencies 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
 	deps := []string{"${shlibs:Depends}", "${misc:Depends}"}
-	if *pkgType == "program" {
+	if pkgType == "program" {
 		fmt.Fprintf(f, "Architecture: any\n")
 		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	} else {
@@ -667,10 +647,33 @@ func copyFile(src, dest string) error {
 	return output.Close()
 }
 
-func main() {
-	flag.Parse()
+func execMake(args []string) {
+	fs := flag.NewFlagSet("make", flag.ExitOnError)
 
-	if flag.NArg() < 1 {
+	var gitRevision string
+	fs.StringVar(&gitRevision,
+		"git_revision",
+		"",
+		"git revision (see gitrevisions(7)) of the specified Go package to check out, defaulting to the default behavior of git clone. Useful in case you do not want to package e.g. current HEAD.")
+
+	var allowUnknownHoster bool
+	fs.BoolVar(&allowUnknownHoster,
+		"allow_unknown_hoster",
+		false,
+		"The pkg-go naming conventions (see http://pkg-go.alioth.debian.org/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
+
+	var pkgType string
+	fs.StringVar(&pkgType,
+		"type",
+		"",
+		"One of \"library\" or \"program\"")
+
+	err := fs.Parse(args)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <go-package-name>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Example: %s golang.org/x/oauth2\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\n")
@@ -679,17 +682,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	gopkg := flag.Arg(0)
+	gopkg := fs.Arg(0)
 
 	// Ensure the specified argument is a Go package import path.
 	if _, err := vcs.RepoRootForImportPath(gopkg, false); err != nil {
 		log.Fatalf("Verifying arguments: %v — did you specify a Go package import path?", err)
 	}
 
-	debsrc := debianNameFromGopkg(gopkg, "library")
+	debsrc := debianNameFromGopkg(gopkg, "library", allowUnknownHoster)
 
-	if strings.TrimSpace(*pkgType) != "" {
-		debsrc = debianNameFromGopkg(gopkg, *pkgType)
+	if strings.TrimSpace(pkgType) != "" {
+		debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 		}
@@ -708,45 +711,26 @@ func main() {
 
 	var (
 		eg             errgroup.Group
-		golangBinaries = make(map[string]string) // map[goImportPath]debianBinaryPackage
+		golangBinaries map[string]string // map[goImportPath]debianBinaryPackage
 	)
 
 	// TODO: also check whether there already is a git repository on alioth.
 	eg.Go(func() error {
-		resp, err := http.Get(golangBinariesURL)
-		if err != nil {
-			return fmt.Errorf("getting %q: %v", golangBinariesURL)
-		}
-		if got, want := resp.StatusCode, http.StatusOK; got != want {
-			return fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
-		}
-		var pkgs []struct {
-			Binary     string `json:"binary"`
-			ImportPath string `json:"metadata_value"`
-			Source     string `json:"source"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
-			return err
-		}
-		for _, pkg := range pkgs {
-			if !strings.HasSuffix(pkg.Binary, "-dev") {
-				continue // skip -dbgsym packages etc.
-			}
-			golangBinaries[pkg.ImportPath] = pkg.Binary
-		}
-		return nil
+		var err error
+		golangBinaries, err = getGolangBinaries()
+		return err
 	})
-	tempfile, version, godependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg)
+	tempfile, version, godependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg, gitRevision, pkgType)
 	if err != nil {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
 
-	if strings.TrimSpace(*pkgType) == "" {
-		*pkgType = autoPkgType
-		debsrc = debianNameFromGopkg(gopkg, *pkgType)
+	if strings.TrimSpace(pkgType) == "" {
+		pkgType = autoPkgType
+		debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
 	}
 	debbin := debsrc + "-dev"
-	if *pkgType == "program" {
+	if pkgType == "program" {
 		debbin = debsrc
 	}
 
@@ -793,7 +777,7 @@ func main() {
 	for _, dep := range dependencies {
 		if len(golangBinaries) == 0 {
 			// fall back to heuristic
-			debdependencies = append(debdependencies, debianNameFromGopkg(dep, "library")+"-dev")
+			debdependencies = append(debdependencies, debianNameFromGopkg(dep, "library", allowUnknownHoster)+"-dev")
 			continue
 		}
 		bin, ok := golangBinaries[dep]
@@ -804,7 +788,7 @@ func main() {
 		debdependencies = append(debdependencies, bin)
 	}
 
-	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, debdependencies); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType, debdependencies); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
