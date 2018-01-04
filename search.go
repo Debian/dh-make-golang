@@ -26,9 +26,9 @@ func getGolangBinaries() (map[string]string, error) {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
 	}
 	var pkgs []struct {
-		Binary     string `json:"binary"`
-		ImportPath string `json:"metadata_value"`
-		Source     string `json:"source"`
+		Binary         string `json:"binary"`
+		XSGoImportPath string `json:"metadata_value"`
+		Source         string `json:"source"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
 		return nil, err
@@ -37,7 +37,10 @@ func getGolangBinaries() (map[string]string, error) {
 		if !strings.HasSuffix(pkg.Binary, "-dev") {
 			continue // skip -dbgsym packages etc.
 		}
-		golangBinaries[pkg.ImportPath] = pkg.Binary
+		for _, importPath := range strings.Split(pkg.XSGoImportPath, ",") {
+			// XS-Go-Import-Path can be comma-separated and contain spaces.
+			golangBinaries[strings.TrimSpace(importPath)] = pkg.Binary
+		}
 	}
 	return golangBinaries, nil
 }
