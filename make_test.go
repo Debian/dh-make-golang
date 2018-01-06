@@ -56,7 +56,7 @@ var nameFromGoPkg = []struct {
 
 func TestDebianNameFromGopkg(t *testing.T) {
 	for _, tt := range nameFromGoPkg {
-		s := debianNameFromGopkg(tt.in, tt.t)
+		s := debianNameFromGopkg(tt.in, tt.t, false)
 		if s != tt.out {
 			t.Errorf("debianNameFromGopkg(%q) => %q, want %q", tt.in, s, tt.out)
 		}
