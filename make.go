@@ -137,7 +137,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 		"tar",
 		"cJf",
 		tempfile,
-		"--exclude-vcs",
+		"--exclude=.git",
 		"--exclude=Godeps",
 		fmt.Sprintf("--exclude=%s/debian", base),
 		base)
@@ -307,8 +307,19 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, ".gitignore"), []byte(".pc\n"), 0644); err != nil {
-		return dir, err
+	{
+		f, err := os.OpenFile(filepath.Join(dir, ".gitignore"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return dir, err
+		}
+		// Beginning newline in case the file already exists and lacks a newline
+		// (not all editors enforce a newline at the end of the file):
+		if _, err := f.Write([]byte("\n.pc\n")); err != nil {
+			return dir, err
+		}
+		if err := f.Close(); err != nil {
+			return dir, err
+		}
 	}
 
 	if err := runGitCommandIn(dir, "add", ".gitignore"); err != nil {
