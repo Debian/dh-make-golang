@@ -10,7 +10,7 @@ func main() {
 	args := os.Args[1:]
 
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.Parse(args)
+	fs.Parse(args[0:0])
 
 	// Retrieve command name as first argument.
 	cmd := fs.Arg(0)
