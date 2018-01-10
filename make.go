@@ -725,7 +725,7 @@ func execMake(args []string) {
 		golangBinaries map[string]string // map[goImportPath]debianBinaryPackage
 	)
 
-	// TODO: also check whether there already is a git repository on alioth.
+	// TODO: also check whether there already is a git repository on salsa.
 	eg.Go(func() error {
 		var err error
 		golangBinaries, err = getGolangBinaries()
@@ -821,10 +821,10 @@ func execMake(args []string) {
 	log.Printf("    git add debian && git commit -a -m 'Initial packaging'\n")
 	log.Printf("    gbp buildpackage --git-pbuilder\n")
 	log.Printf("\n")
-	log.Printf("To create the packaging git repository on alioth, use:\n")
-	log.Printf("    ssh git.debian.org \"/git/pkg-go/setup-repository %s 'Packaging for %s'\"\n", debsrc, debsrc)
+	log.Printf("To create the packaging git repository on salsa, use:\n")
+	log.Printf("    dh-make-golang create-salsa-project %s", debsrc)
 	log.Printf("\n")
-	log.Printf("Once you are happy with your packaging, push it to alioth using:\n")
-	log.Printf("    git remote set-url origin git+ssh://git.debian.org/git/pkg-go/packages/%s.git\n", debsrc)
+	log.Printf("Once you are happy with your packaging, push it to salsa using:\n")
+	log.Printf("    git remote set-url origin git@salsa.debian.org:go-team/packages/%s.git\n", debsrc)
 	log.Printf("    gbp push\n")
 }
