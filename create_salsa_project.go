@@ -43,12 +43,41 @@ func execCreateSalsaProject(args []string) {
 		log.Fatalf("Could not create webhook on salsa project: %s\n", err)
 	}
 
+	for _, branch := range []string{"master", "debian/*", "upstream", "upstream/*", "pristine-tar"} {
+		if err := protectSalsaProjectBranch(gitlabProject.ID, branch, token); err != nil {
+			log.Printf("Could not protect branch %s: %s\n", branch, err)
+		}
+	}
+
 }
 
 func postFormToSalsaApi(path string, data url.Values, token string) (*http.Response, error) {
 	postUrl := salsaApiUrl + path
 	data.Add("private_token", token)
 	return http.PostForm(postUrl, data)
+}
+
+func protectSalsaProjectBranch(projectId int, branch, token string) error {
+	postPath := "/projects/" + strconv.Itoa(projectId) + "/protected_branches"
+
+	response, err := postFormToSalsaApi(postPath,
+		url.Values{
+			"name": {branch},
+		},
+		token)
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != http.StatusCreated {
+		responseData, _ := ioutil.ReadAll(response.Body)
+
+		return fmt.Errorf("http status %d: %s",
+			response.StatusCode,
+			responseData)
+	}
+
+	return nil
 }
 
 func createSalsaWebhook(projectId int, webhookUrl, token string) error {
