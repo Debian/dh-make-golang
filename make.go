@@ -459,7 +459,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		return err
 	}
 	defer f.Close()
-	fmt.Fprintf(f, "10\n")
+	fmt.Fprintf(f, "11\n")
 
 	f, err = os.Create(filepath.Join(dir, "debian", "control"))
 	if err != nil {
@@ -473,7 +473,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <pkg-go-maintainers@lists.alioth.debian.org>\n")
 	fmt.Fprintf(f, "Uploaders: %s <%s>\n", getDebianName(), getDebianEmail())
 	sort.Strings(dependencies)
-	builddeps := append([]string{"debhelper (>= 10)", "dh-golang", "golang-any"}, dependencies...)
+	builddeps := append([]string{"debhelper (>= 11)", "dh-golang", "golang-any"}, dependencies...)
 	fmt.Fprintf(f, "Build-Depends: %s\n", strings.Join(builddeps, ",\n               "))
 	fmt.Fprintf(f, "Standards-Version: 4.1.3\n")
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
