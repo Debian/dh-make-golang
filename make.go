@@ -391,6 +391,8 @@ func debianNameFromGopkg(gopkg, t string, allowUnknownHoster bool) string {
 		host = "pault"
 	} else if host == "howett.net" {
 		host = "howett"
+	} else if host == "go4.org" {
+		host = "go4"
 	} else {
 		if allowUnknownHoster {
 			suffix, _ := publicsuffix.PublicSuffix(host)
