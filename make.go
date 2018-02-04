@@ -39,9 +39,35 @@ func passthroughEnv() []string {
 	return result
 }
 
+func findVendorDirs(dir string) ([]string, error) {
+	var vendorDirs []string
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info != nil && !info.IsDir() {
+			return nil // nothing to do for anything but directories
+		}
+		if info.Name() == ".git" ||
+			info.Name() == ".hg" ||
+			info.Name() == ".bzr" {
+			return filepath.SkipDir
+		}
+		if info.Name() == "vendor" {
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			vendorDirs = append(vendorDirs, rel)
+		}
+		return nil
+	})
+	return vendorDirs, err
+}
+
 // TODO: refactor this function into multiple smaller ones. Currently all the
 // code is in this function only due to the os.RemoveAll(tempdir).
-func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string) (string, string, map[string]bool, string, error) {
+func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string) (string, string, map[string]bool, string, []string, error) {
 	// dependencies is a map in order to de-duplicate multiple imports
 	// pointing into the same repository.
 	dependencies := make(map[string]bool)
@@ -49,7 +75,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 	tempdir, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 	defer os.RemoveAll(tempdir)
 
@@ -72,7 +98,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 	if err := cmd.Run(); err != nil {
 		done <- true
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 	done <- true
 	fmt.Printf("\r")
@@ -96,7 +122,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 		if err := cmd.Run(); err != nil {
 			done <- true
-			return "", "", dependencies, autoPkgType, err
+			return "", "", dependencies, autoPkgType, nil, err
 		}
 		done <- true
 		fmt.Printf("\r")
@@ -106,11 +132,16 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 		log.Printf("WARNING: ignoring debian/ directory that came with the upstream sources\n")
 	}
 
-	vendorpath := filepath.Join(tempdir, "src", gopkg, "vendor")
-	if fi, err := os.Stat(vendorpath); err == nil && fi.IsDir() {
-		log.Printf("Deleting upstream vendor/ directory, installing remaining dependencies")
-		if err := os.RemoveAll(vendorpath); err != nil {
-			return "", "", dependencies, autoPkgType, err
+	vendorDirs, err := findVendorDirs(filepath.Join(tempdir, "src", gopkg))
+	if err != nil {
+		return "", "", dependencies, autoPkgType, nil, err
+	}
+	if len(vendorDirs) > 0 {
+		log.Printf("Deleting upstream vendor/ directories, installing remaining dependencies")
+		for _, dir := range vendorDirs {
+			if err := os.RemoveAll(filepath.Join(tempdir, "src", gopkg, dir)); err != nil {
+				return "", "", dependencies, autoPkgType, nil, err
+			}
 		}
 		done := make(chan bool)
 		go progressSize("go get", filepath.Join(tempdir, "src"), done)
@@ -122,7 +153,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 		cmd.Dir = filepath.Join(tempdir, "src", gopkg)
 		if err := cmd.Run(); err != nil {
 			done <- true
-			return "", "", dependencies, autoPkgType, err
+			return "", "", dependencies, autoPkgType, nil, err
 		}
 		done <- true
 		fmt.Printf("\r")
@@ -144,18 +175,18 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 	cmd.Dir = filepath.Join(tempdir, "src", dir)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 
 	if _, err := os.Stat(filepath.Join(tempdir, "src", gopkg, ".git")); os.IsNotExist(err) {
-		return "", "", dependencies, autoPkgType, fmt.Errorf("Not a git repository, dh-make-golang currently only supports git")
+		return "", "", dependencies, autoPkgType, nil, fmt.Errorf("Not a git repository, dh-make-golang currently only supports git")
 	}
 
 	log.Printf("Determining upstream version number\n")
 
 	version, err := pkgVersionFromGit(filepath.Join(tempdir, "src", gopkg))
 	if err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 
 	log.Printf("Package version is %q\n", version)
@@ -171,7 +202,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 	for _, line := range strings.Split(string(out), "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -203,7 +234,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 	out, err = cmd.Output()
 	if err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 
 	var godependencies []string
@@ -223,7 +254,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 	}
 
 	if len(godependencies) == 0 {
-		return tempfile, version, dependencies, autoPkgType, nil
+		return tempfile, version, dependencies, autoPkgType, vendorDirs, nil
 	}
 
 	// Remove all packages which are in the standard lib.
@@ -239,7 +270,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 
 	out, err = cmd.Output()
 	if err != nil {
-		return "", "", dependencies, autoPkgType, err
+		return "", "", dependencies, autoPkgType, nil, err
 	}
 
 	for _, p := range strings.Split(string(out), "\n") {
@@ -252,7 +283,7 @@ func makeUpstreamSourceTarball(gopkg string, gitRevision string, pkgType string)
 			dependencies[rr.Root] = true
 		}
 	}
-	return tempfile, version, dependencies, autoPkgType, nil
+	return tempfile, version, dependencies, autoPkgType, vendorDirs, nil
 }
 
 func runGitCommandIn(dir string, arg ...string) error {
@@ -433,7 +464,7 @@ func getDebianEmail() string {
 	return "TODO"
 }
 
-func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, dependencies []string) error {
+func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, dependencies []string, vendorDirs []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -526,7 +557,11 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
-	fmt.Fprintf(f, "Files-Excluded: vendor Godeps/_workspace\n")
+	fmt.Fprintf(f, "Files-Excluded:\n")
+	for _, dir := range vendorDirs {
+		fmt.Fprintf(f, "  %s\n", dir)
+	}
+	fmt.Fprintf(f, "  Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files: *\n")
 	fmt.Fprintf(f, "Copyright: %s\n", copyright)
@@ -733,7 +768,7 @@ func execMake(args []string) {
 		golangBinaries, err = getGolangBinaries()
 		return err
 	})
-	tempfile, version, godependencies, autoPkgType, err := makeUpstreamSourceTarball(gopkg, gitRevision, pkgType)
+	tempfile, version, godependencies, autoPkgType, vendorDirs, err := makeUpstreamSourceTarball(gopkg, gitRevision, pkgType)
 	if err != nil {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
@@ -801,7 +836,7 @@ func execMake(args []string) {
 		debdependencies = append(debdependencies, bin)
 	}
 
-	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType, debdependencies); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType, debdependencies, vendorDirs); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
