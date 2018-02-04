@@ -20,7 +20,7 @@ func getGolangBinaries() (map[string]string, error) {
 
 	resp, err := http.Get(golangBinariesURL)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %v", golangBinariesURL)
+		return nil, fmt.Errorf("getting %q: %v", golangBinariesURL, err)
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
