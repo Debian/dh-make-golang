@@ -197,6 +197,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		rr, err := vcs.RepoRootForImportPath(dep, false)
 		if err != nil {
 			log.Printf("Could not determine repo path for import path %q: %v\n", dep, err)
+			continue
 		}
 
 		roots[rr.Root] = true

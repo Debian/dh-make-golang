@@ -19,6 +19,8 @@ func main() {
 		execSearch(args[1:])
 	case "create-salsa-project":
 		execCreateSalsaProject(args[1:])
+	case "estimate":
+		execEstimate(args[1:])
 	default:
 		execMake(args)
 	}
