@@ -74,24 +74,20 @@ type upstream struct {
 	repoDeps   []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
 }
 
-func (u *upstream) get(gopath, repo string) error {
+func (u *upstream) get(gopath, repo, rev string) error {
 	done := make(chan struct{})
 	defer close(done)
 	go progressSize("go get", filepath.Join(gopath, "src"), done)
 
-	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
-	// the arguments to “go get” are packages, not repositories. Hence, we
-	// specify “gopkg/...” in order to cover all packages.
-	// As a concrete example, github.com/jacobsa/util is a repository we want
-	// to package into a single Debian package, and using “go get -d
-	// github.com/jacobsa/util” fails because there are no buildable go files
-	// in the top level of that repository.
-	cmd := exec.Command("go", "get", "-d", "-t", repo+"/...")
-	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
-	}, passthroughEnv()...)
-	return cmd.Run()
+	rr, err := vcs.RepoRootForImportPath(repo, false)
+	if err != nil {
+		return err
+	}
+	dir := filepath.Join(gopath, "src", rr.Root)
+	if rev != "" {
+		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
+	}
+	return rr.VCS.Create(dir, rr.Repo)
 }
 
 func (u *upstream) tar(gopath, repo string) error {
@@ -158,7 +154,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		return fmt.Errorf("%v: %v", cmd.Args, err)
 	}
 
-	var godependencies []string
+	godependencies := make(map[string]bool)
 	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if p == "" {
 			continue // skip separators between import types
@@ -170,7 +166,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		if p == "C" {
 			// TODO: maybe parse the comments to figure out C deps from pkg-config files?
 		} else {
-			godependencies = append(godependencies, p)
+			godependencies[p] = true
 		}
 	}
 
@@ -179,10 +175,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	}
 
 	// Remove all packages which are in the standard lib.
-	args := []string{"list", "-f", "{{.ImportPath}}: {{.Standard}}"}
-	args = append(args, godependencies...)
-
-	cmd = exec.Command("go", args...)
+	cmd = exec.Command("go", "list", "std")
 	cmd.Dir = filepath.Join(gopath, "src", repo)
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
@@ -194,24 +187,24 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		return fmt.Errorf("%v: %v", cmd.Args, err)
 	}
 
-	// dependencies is a map in order to de-duplicate multiple imports
-	// pointing into the same repository.
-	dependencies := make(map[string]bool)
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if !strings.HasSuffix(line, ": false") {
-			continue
-		}
-		importpath := strings.TrimSuffix(line, ": false")
-		rr, err := vcs.RepoRootForImportPath(importpath, false)
-		if err != nil {
-			log.Printf("Could not determine repo path for import path %q: %v\n", importpath, err)
-		}
-		dependencies[rr.Root] = true
+		delete(godependencies, line)
 	}
 
-	u.repoDeps = make([]string, 0, len(dependencies))
-	for dep := range dependencies {
-		u.repoDeps = append(u.repoDeps, dep)
+	// Resolve all packages to the root of their repository.
+	roots := make(map[string]bool)
+	for dep := range godependencies {
+		rr, err := vcs.RepoRootForImportPath(dep, false)
+		if err != nil {
+			log.Printf("Could not determine repo path for import path %q: %v\n", dep, err)
+		}
+
+		roots[rr.Root] = true
+	}
+
+	u.repoDeps = make([]string, 0, len(godependencies))
+	for root := range roots {
+		u.repoDeps = append(u.repoDeps, root)
 	}
 
 	return nil
@@ -228,25 +221,13 @@ func makeUpstreamSourceTarball(repo, revision string) (*upstream, error) {
 	var u upstream
 
 	log.Printf("Downloading %q\n", repo+"/...")
-	if err := u.get(gopath, repo); err != nil {
+	if err := u.get(gopath, repo, revision); err != nil {
 		return nil, err
 	}
 
 	// Verify early this repository uses git (we call pkgVersionFromGit later):
 	if _, err := os.Stat(filepath.Join(repoDir, ".git")); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Not a git repository, dh-make-golang currently only supports git")
-	}
-
-	if revision != "" {
-		log.Printf("Checking out git revision %q\n", revision)
-		if err := runGitCommandIn(repoDir, "reset", "--hard", revision); err != nil {
-			return nil, fmt.Errorf("could not check out git revision %q: %v\n", revision, err)
-		}
-
-		log.Printf("Refreshing %q\n", repo+"/...")
-		if err := u.get(gopath, repo); err != nil {
-			return nil, err
-		}
 	}
 
 	if _, err := os.Stat(filepath.Join(repoDir, "debian")); err == nil {
@@ -258,14 +239,11 @@ func makeUpstreamSourceTarball(repo, revision string) (*upstream, error) {
 		return nil, err
 	}
 	if len(u.vendorDirs) > 0 {
-		log.Printf("Deleting upstream vendor/ directories, installing remaining dependencies")
+		log.Printf("Deleting upstream vendor/ directories")
 		for _, dir := range u.vendorDirs {
 			if err := os.RemoveAll(filepath.Join(repoDir, dir)); err != nil {
 				return nil, err
 			}
-		}
-		if err := u.get(gopath, repo); err != nil {
-			return nil, err
 		}
 	}
 
