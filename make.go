@@ -502,10 +502,11 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
-	deps := []string{"${shlibs:Depends}", "${misc:Depends}"}
+	deps := []string{"${misc:Depends}"}
 	if pkgType == "program" {
 		fmt.Fprintf(f, "Architecture: any\n")
 		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
+		deps = append(deps, "${shlibs:Depends}")
 	} else {
 		fmt.Fprintf(f, "Architecture: all\n")
 		deps = append(deps, dependencies...)
