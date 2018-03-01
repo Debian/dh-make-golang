@@ -569,6 +569,10 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	defer f.Close()
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
 	fmt.Fprintf(f, "\n")
+	if pkgType == "program" {
+		fmt.Fprintf(f, "override_dh_auto_install:\n")
+		fmt.Fprintf(f, "\tdh_auto_install -- --no-source\n")
+	}
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
 
