@@ -117,7 +117,13 @@ func estimate(importpath string) error {
 }
 
 func execEstimate(args []string) {
-	fs := flag.NewFlagSet("search", flag.ExitOnError)
+	fs := flag.NewFlagSet("estimate", flag.ExitOnError)
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s estimate <go-package-importpath>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-package-importpath> into Debian by printing all currently unpacked repositories\n")
+		fmt.Fprintf(os.Stderr, "Example: %s estimate github.com/Debian/dh-make-golang\n", os.Args[0])
+	}
 
 	err := fs.Parse(args)
 	if err != nil {
@@ -125,9 +131,7 @@ func execEstimate(args []string) {
 	}
 
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %s estimate <importpath>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <importpath> into Debian by printing all currently unpacked repositories\n")
-		fmt.Fprintf(os.Stderr, "Example: %s estimate github.com/Debian/dh-make-golang\n", os.Args[0])
+		fs.Usage()
 		os.Exit(1)
 	}
 

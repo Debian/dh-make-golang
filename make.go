@@ -682,8 +682,22 @@ func copyFile(src, dest string) error {
 	return output.Close()
 }
 
-func execMake(args []string) {
+func execMake(args []string, usage func()) {
 	fs := flag.NewFlagSet("make", flag.ExitOnError)
+	if usage != nil {
+		fs.Usage = usage
+	} else {
+		fs.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Usage: %s [make] <go-package-importpath>\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "Example: %s make golang.org/x/oauth2\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "%s will create new files and directories in the current working directory.\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "%s will connect to the internet to download the specified Go package.\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprintf(os.Stderr, "Flags:\n")
+			fs.PrintDefaults()
+		}
+	}
 
 	var gitRevision string
 	fs.StringVar(&gitRevision,
@@ -709,11 +723,7 @@ func execMake(args []string) {
 	}
 
 	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <go-package-name>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Example: %s golang.org/x/oauth2\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "%s will create new files and directories in the current working directory.\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "%s will connect to the internet to download the specified Go package and its dependencies.\n", os.Args[0])
+		fs.Usage()
 		os.Exit(1)
 	}
 

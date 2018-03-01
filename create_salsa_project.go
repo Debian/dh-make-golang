@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,15 +11,20 @@ import (
 )
 
 func execCreateSalsaProject(args []string) {
-	fs := flag.NewFlagSet("search", flag.ExitOnError)
+	fs := flag.NewFlagSet("create-salsa-project", flag.ExitOnError)
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s create-salsa-project <project-name>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Example: %s create-salsa-project golang-github-mattn-go-sqlite3\n", os.Args[0])
+	}
 
 	if err := fs.Parse(args); err != nil {
 		log.Fatal(err)
 	}
 
 	if fs.NArg() != 1 {
-		log.Printf("Usage: %s create-salsa-project <project-name>\n", os.Args[0])
-		log.Fatalf("Example: %s create-salsa-project golang-github-mattn-go-sqlite3\n", os.Args[0])
+		fs.Usage()
+		os.Exit(1)
 	}
 
 	projectName := fs.Arg(0)

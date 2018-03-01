@@ -48,15 +48,19 @@ func getGolangBinaries() (map[string]string, error) {
 func execSearch(args []string) {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s search <pattern>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Uses Go's default regexp syntax (https://golang.org/pkg/regexp/syntax/)\n")
+		fmt.Fprintf(os.Stderr, "Example: %s search 'debi.*'\n", os.Args[0])
+	}
+
 	err := fs.Parse(args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %s search <pattern>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Uses Go's default regexp syntax (https://golang.org/pkg/regexp/syntax/)\n")
-		fmt.Fprintf(os.Stderr, "Example: %s search debi.*\n", os.Args[0])
+		fs.Usage()
 		os.Exit(1)
 	}
 
