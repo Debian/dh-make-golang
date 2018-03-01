@@ -47,7 +47,7 @@ func estimate(importpath string) error {
 
 	// Use digraph(1) to obtain the forward transitive closure of the repo in
 	// question.
-	cmd := exec.Command("/bin/sh", "-c", "go list -f '{{.ImportPath}}{{.Imports}}' ... | tr '[]' ' ' | digraph forward $(go list "+importpath+"/...)")
+	cmd := exec.Command("/bin/sh", "-c", "go list -f '{{.ImportPath}}{{.Imports}}{{.TestImports}}{{.XTestImports}}' ... | tr '[]' ' ' | digraph forward $(go list "+importpath+"/...)")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", gopath),
