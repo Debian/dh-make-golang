@@ -731,8 +731,13 @@ func execMake(args []string, usage func()) {
 	gopkg := fs.Arg(0)
 
 	// Ensure the specified argument is a Go package import path.
-	if _, err := vcs.RepoRootForImportPath(gopkg, false); err != nil {
+	rr, err := vcs.RepoRootForImportPath(gopkg, false)
+	if err != nil {
 		log.Fatalf("Verifying arguments: %v — did you specify a Go package import path?", err)
+	}
+	if gopkg != rr.Root {
+		log.Printf("Continuing with repository root %q instead of specified import path %q (repositories are the unit of packaging in Debian)", rr.Root, gopkg)
+		gopkg = rr.Root
 	}
 
 	debsrc := debianNameFromGopkg(gopkg, "library", allowUnknownHoster)
