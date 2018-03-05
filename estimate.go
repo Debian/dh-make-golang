@@ -33,6 +33,26 @@ func get(gopath, repo string) error {
 	return cmd.Run()
 }
 
+func removeVendor(gopath string) (found bool, _ error) {
+	err := filepath.Walk(filepath.Join(gopath, "src"), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return nil // skip non-directories
+		}
+		if info.Name() != "vendor" {
+			return nil
+		}
+		found = true
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+		return filepath.SkipDir
+	})
+	return found, err
+}
+
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
@@ -43,6 +63,18 @@ func estimate(importpath string) error {
 
 	if err := get(gopath, importpath); err != nil {
 		return err
+	}
+
+	found, err := removeVendor(gopath)
+	if err != nil {
+		return err
+	}
+
+	if found {
+		// Fetch un-vendored dependencies
+		if err := get(gopath, importpath); err != nil {
+			return err
+		}
 	}
 
 	// Use digraph(1) to obtain the forward transitive closure of the repo in
