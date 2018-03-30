@@ -1,6 +1,6 @@
 dh-make-golang is a tool to automatically create Debian packaging for Go
 packages. Its goal is to automate away as much of the work as possible when
-creating a Debian package for a Go library package.
+creating a Debian package for a Go library package or Go program.
 
 ## Overview
 
