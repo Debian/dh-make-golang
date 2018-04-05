@@ -8,10 +8,10 @@ All you need to specify is a Go package name. In your current working
 directory, a new directory will be created containing a git repository. Inside
 that repository, you’ll find the Go package’s source code plus the necessary
 Debian packaging files to build a Debian package. The packaging adheres to the
-[pkg-go packaging guidelines](http://pkg-go.alioth.debian.org/packaging.html)
+[pkg-go packaging guidelines](https://go-team.pages.debian.net/packaging.html)
 and hence can be placed alongside the other [team-maintained packages in
-pkg-go](http://anonscm.debian.org/cgit/pkg-go/packages/), hosted on Debian’s
-[alioth](https://wiki.debian.org/Alioth).
+pkg-go](https://salsa.debian.org/go-team/packages), hosted on Debian’s
+[salsa](https://wiki.debian.org/Salsa).
 
 ## Usage/example
 
