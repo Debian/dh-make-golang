@@ -51,26 +51,28 @@ func pkgVersionFromGit(gitdir string) (string, error) {
 	// This results in an output like 4.10.2-232-g9f107c8
 	cmd = exec.Command("git", "describe", "--long", "--tags")
 	cmd.Dir = gitdir
+	lastCommitSha := ""
 	describeBytes, err := cmd.Output()
 	if err != nil {
-		// In case there are no tags at all, we need to pass --all, but we
-		// cannot use --all unconditionally because then git will describe
-		// e.g. heads/master instead of tags.
-		cmd = exec.Command("git", "describe", "--long", "--all")
+		// In case there are no tags at all, we just use the sha of the current commit
+		cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
 		cmd.Dir = gitdir
 		cmd.Stderr = os.Stderr
-		describeBytes, err = cmd.Output()
+		revparseBytes, err := cmd.Output()
 		if err != nil {
 			return "", err
 		}
-	}
-	submatches := describeRegexp.FindSubmatch(describeBytes)
-	if submatches == nil {
-		return "", fmt.Errorf("git describe output %q does not match expected format", string(describeBytes))
+		lastCommitSha = strings.TrimSpace(string(revparseBytes))
+	} else {
+		submatches := describeRegexp.FindSubmatch(describeBytes)
+		if submatches == nil {
+			return "", fmt.Errorf("git describe output %q does not match expected format", string(describeBytes))
+		}
+		lastCommitSha = string(submatches[1])
 	}
 	version := fmt.Sprintf("%sgit%s.%s",
 		lastTag,
 		time.Unix(lastCommitUnix, 0).UTC().Format("20060102"),
-		string(submatches[1]))
+		lastCommitSha)
 	return version, nil
 }
