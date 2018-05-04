@@ -17,7 +17,7 @@ func TestAcceptInput(t *testing.T) {
 	for _, tt := range shortName {
 		in := normalizeDebianProgramName(tt.in)
 		if in != tt.out {
-			t.Errorf("userInput(%q) => %q, want %q", tt.in, tt.out)
+			t.Errorf("userInput(%q) => %q, want %q", tt.in, in, tt.out)
 		}
 	}
 }
@@ -39,7 +39,7 @@ func TestNormalizeDebianProgramName(t *testing.T) {
 	for _, tt := range miscName {
 		s := normalizeDebianProgramName(tt.in)
 		if s != tt.out {
-			t.Errorf("normalizeDebianProgramName(%q) => %q, want %q", tt.in, tt.out)
+			t.Errorf("normalizeDebianProgramName(%q) => %q, want %q", tt.in, s, tt.out)
 		}
 	}
 }
