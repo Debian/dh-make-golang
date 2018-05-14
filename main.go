@@ -3,6 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/google/go-github/github"
+	"github.com/gregjones/httpcache"
+)
+
+var (
+	gitHub *github.Client
 )
 
 func usage() {
@@ -19,6 +26,14 @@ func usage() {
 }
 
 func main() {
+	transport := github.BasicAuthTransport{
+		Username:  os.Getenv("GITHUB_USERNAME"),
+		Password:  os.Getenv("GITHUB_PASSWORD"),
+		OTP:       os.Getenv("GITHUB_OTP"),
+		Transport: httpcache.NewMemoryCacheTransport(),
+	}
+	gitHub = github.NewClient(transport.Client())
+
 	// Retrieve args and Shift binary name off argument list.
 	args := os.Args[1:]
 

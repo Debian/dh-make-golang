@@ -1,44 +1,17 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
 	"golang.org/x/net/html"
 )
 
-type licensesReply struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
-	URL      string `json:"url"`
-	Featured bool   `json:"featured"`
-}
-
-type ownerReply struct {
-	URL string `json:"url"`
-}
-
-type repositoryReply struct {
-	License     licensesReply `json:"license"`
-	CreatedAt   string        `json:"created_at"`
-	Description string        `json:"description"`
-	Owner       ownerReply    `json:"owner"`
-}
-
-type licenseReply struct {
-	Body string `json:"body"`
-}
-
-type usersReply struct {
-	Name string `json:"name"`
-}
-
 // To update, use:
-// curl -s -H 'Accept: application/vnd.github.drax-preview+json' https://api.github.com/licenses | jq '.[].key'
+// curl -s https://api.github.com/licenses | jq '.[].key'
 // then compare with https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/#license-specification
 var githubLicenseToDebianLicense = map[string]string{
 	//"agpl-3.0" (not in debian?)
@@ -85,7 +58,7 @@ var debianLicenseText = map[string]string{
 
 var githubRegexp = regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
 
-func findGitHubRepo(gopkg string) (string, error) {
+func findGitHubOwnerRepo(gopkg string) (string, error) {
 	if strings.HasPrefix(gopkg, "github.com/") {
 		return strings.TrimPrefix(gopkg, "github.com/"), nil
 	}
@@ -136,27 +109,30 @@ func findGitHubRepo(gopkg string) (string, error) {
 	}
 }
 
+func findGitHubRepo(gopkg string) (owner string, repo string, _ error) {
+	ownerrepo, err := findGitHubOwnerRepo(gopkg)
+	if err != nil {
+		return "", "", err
+	}
+	parts := strings.Split(ownerrepo, "/")
+	if got, want := len(parts), 2; got != want {
+		return "", "", fmt.Errorf("invalid GitHub repo: %q does not follow owner/repo", repo)
+	}
+	return parts[0], parts[1], nil
+}
+
 func getLicenseForGopkg(gopkg string) (string, string, error) {
-	repo, err := findGitHubRepo(gopkg)
+	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
 		return "", "", err
 	}
-	// TODO: cache this reply
-	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+repo, nil)
+
+	rl, _, err := gitHub.Repositories.License(context.TODO(), owner, repo)
 	if err != nil {
 		return "", "", err
 	}
-	req.Header.Set("Accept", "application/vnd.github.drax-preview+json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	defer resp.Body.Close()
-	var r repositoryReply
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return "", "", err
-	}
-	if deblicense, ok := githubLicenseToDebianLicense[r.License.Key]; ok {
+
+	if deblicense, ok := githubLicenseToDebianLicense[rl.GetLicense().GetKey()]; ok {
 		fulltext := debianLicenseText[deblicense]
 		if fulltext == "" {
 			fulltext = "TODO"
@@ -168,74 +144,53 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 }
 
 func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
-	repo, err := findGitHubRepo(gopkg)
-	if err != nil {
-		return "", "", err
-	}
-	resp, err := http.Get("https://api.github.com/repos/" + repo)
-	if err != nil {
-		return "", "", err
-	}
-	defer resp.Body.Close()
-
-	var rr repositoryReply
-	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
-		return "", "", err
-	}
-
-	creation, err := time.Parse("2006-01-02T15:04:05Z", rr.CreatedAt)
+	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
 		return "", "", err
 	}
 
-	if strings.TrimSpace(rr.Owner.URL) == "" {
+	rr, _, err := gitHub.Repositories.Get(context.TODO(), owner, repo)
+	if err != nil {
+		return "", "", err
+	}
+
+	if strings.TrimSpace(rr.GetOwner().GetURL()) == "" {
 		return "", "", fmt.Errorf("Repository owner URL not present in API response")
 	}
 
-	resp, err = http.Get(rr.Owner.URL)
+	ur, _, err := gitHub.Users.Get(context.TODO(), rr.GetOwner().GetLogin())
 	if err != nil {
 		return "", "", err
 	}
-	defer resp.Body.Close()
 
-	var ur usersReply
-	if err := json.NewDecoder(resp.Body).Decode(&ur); err != nil {
-		return "", "", err
-	}
-
-	copyright := creation.Format("2006") + " " + ur.Name
+	copyright := rr.CreatedAt.Format("2006") + " " + ur.GetName()
 	if strings.HasPrefix(repo, "google/") {
 		// As per https://opensource.google.com/docs/creating/, Google retains
 		// the copyright for repositories underneath github.com/google/.
-		copyright = creation.Format("2006") + " Google Inc."
+		copyright = rr.CreatedAt.Format("2006") + " Google Inc."
 	}
 
-	return ur.Name, copyright, nil
+	return ur.GetName(), copyright, nil
 }
 
 func getDescriptionForGopkg(gopkg string) (string, error) {
-	repo, err := findGitHubRepo(gopkg)
+	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.Get("https://api.github.com/repos/" + repo)
+
+	rr, _, err := gitHub.Repositories.Get(context.TODO(), owner, repo)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	var rr repositoryReply
-	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(rr.Description), nil
+	return strings.TrimSpace(rr.GetDescription()), nil
 }
 
 func getHomepageForGopkg(gopkg string) string {
-	repo, err := findGitHubRepo(gopkg)
+	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
 		return "TODO"
 	}
-	return "https://github.com/" + repo
+	return "https://github.com/" + owner + "/" + repo
 }

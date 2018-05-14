@@ -2,21 +2,13 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"strings"
 
 	"github.com/russross/blackfriday"
 )
-
-type readmeReply struct {
-	Content  string `json:"content"`
-	Encoding string `json:"encoding"`
-	Name     string `json:"name"`
-}
 
 func reformatForControl(raw string) string {
 	// Reformat the wrapped description to conform to Debian’s control format.
@@ -30,26 +22,18 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	if !strings.HasPrefix(gopkg, "github.com/") {
 		return "", nil
 	}
-	resp, err := http.Get("https://api.github.com/repos/" + gopkg[len("github.com/"):] + "/readme")
+	parts := strings.Split(strings.TrimPrefix(gopkg, "github.com/"), "/")
+	if got, want := len(parts), 2; got != want {
+		return "", fmt.Errorf("invalid GitHub repo: %q does not follow github.com/owner/repo", gopkg)
+	}
+	owner, repo := parts[0], parts[1]
+
+	rr, _, err := gitHub.Repositories.GetReadme(context.TODO(), owner, repo, nil)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected HTTP status: got %d, want %d", resp.StatusCode, http.StatusOK)
-	}
-
-	var rr readmeReply
-	if err := json.NewDecoder(resp.Body).Decode(&rr); err != nil {
-		return "", err
-	}
-
-	if rr.Encoding != "base64" {
-		return "", fmt.Errorf("unexpected encoding: got %q, want %q", rr.Encoding, "base64")
-	}
-
-	content, err := base64.StdEncoding.DecodeString(rr.Content)
+	content, err := rr.GetContent()
 	if err != nil {
 		return "", err
 	}
@@ -61,14 +45,14 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	// fairly involved, but it’d be the most correct solution to the problem at
 	// hand. Our current code just knows markdown, which is good enough since
 	// most (Go?) projects in fact use markdown for their README files.
-	if !strings.HasSuffix(rr.Name, "md") &&
-		!strings.HasSuffix(rr.Name, "markdown") &&
-		!strings.HasSuffix(rr.Name, "mdown") &&
-		!strings.HasSuffix(rr.Name, "mkdn") {
+	if !strings.HasSuffix(rr.GetName(), "md") &&
+		!strings.HasSuffix(rr.GetName(), "markdown") &&
+		!strings.HasSuffix(rr.GetName(), "mdown") &&
+		!strings.HasSuffix(rr.GetName(), "mkdn") {
 		return reformatForControl(strings.TrimSpace(string(content))), nil
 	}
 
-	output := blackfriday.Markdown(content, &TextRenderer{}, 0)
+	output := blackfriday.Markdown([]byte(content), &TextRenderer{}, 0)
 	// Shell out to fmt(1) to line-wrap the output.
 	cmd := exec.Command("fmt")
 	cmd.Stdin = bytes.NewBuffer(output)
