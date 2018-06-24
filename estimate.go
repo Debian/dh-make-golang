@@ -3,14 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/vcs"
+	"golang.org/x/tools/refactor/importgraph"
 )
 
 func get(gopath, repo string) error {
@@ -77,51 +80,23 @@ func estimate(importpath string) error {
 		}
 	}
 
-	// Use digraph(1) to obtain the forward transitive closure of the repo in
-	// question.
-	cmd := exec.Command("/bin/sh", "-c", "go list -f '{{.ImportPath}}{{.Imports}}{{.TestImports}}{{.XTestImports}}' ... | tr '[]' ' ' | digraph forward $(go list "+importpath+"/...)")
+	// Remove standard lib packages
+	cmd := exec.Command("go", "list", "std")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		fmt.Sprintf("GOPATH=%s", gopath),
 	}, passthroughEnv()...)
+
 	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("%v: %v", cmd.Args, err)
 	}
-
-	closure := make(map[string]bool)
+	stdlib := make(map[string]bool)
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		closure[line] = true
+		stdlib[line] = true
 	}
 
-	// Remove standard lib packages
-	cmd = exec.Command("go", "list", "std")
-	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
-	}, passthroughEnv()...)
-
-	out, err = cmd.Output()
-	if err != nil {
-		return fmt.Errorf("%v: %v", cmd.Args, err)
-	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		delete(closure, line)
-	}
-
-	delete(closure, "C") // would fail resolving anyway
-
-	// Resolve all packages to the root of their repository.
-	roots := make(map[string]bool)
-	for dep := range closure {
-		rr, err := vcs.RepoRootForImportPath(dep, false)
-		if err != nil {
-			log.Printf("Could not determine repo path for import path %q: %v\n", dep, err)
-			continue
-		}
-
-		roots[rr.Root] = true
-	}
+	stdlib["C"] = true // would fail resolving anyway
 
 	// Filter out all already-packaged ones:
 	golangBinaries, err := getGolangBinaries()
@@ -129,20 +104,70 @@ func estimate(importpath string) error {
 		return nil
 	}
 
-	for importpath, binary := range golangBinaries {
-		if roots[importpath] {
-			log.Printf("found %s in Debian package %s", importpath, binary)
-			delete(roots, importpath)
+	build.Default.GOPATH = gopath
+	forward, _, errors := importgraph.Build(&build.Default)
+	if len(errors) > 0 {
+		lines := make([]string, 0, len(errors))
+		for importPath, err := range errors {
+			lines = append(lines, fmt.Sprintf("%s: %v", importPath, err))
+		}
+		return fmt.Errorf("could not load packages: %v", strings.Join(lines, "\n"))
+	}
+
+	var lines []string
+	seen := make(map[string]bool)
+	rrseen := make(map[string]bool)
+	node := func(importPath string, indent int) {
+		rr, err := vcs.RepoRootForImportPath(importPath, false)
+		if err != nil {
+			log.Printf("Could not determine repo path for import path %q: %v\n", importPath, err)
+			return
+		}
+		if rrseen[rr.Root] {
+			return
+		}
+		rrseen[rr.Root] = true
+		if _, ok := golangBinaries[rr.Root]; ok {
+			return // already packaged in Debian
+		}
+		lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), rr.Root))
+	}
+	var visit func(x string, indent int)
+	visit = func(x string, indent int) {
+		if seen[x] {
+			return
+		}
+		seen[x] = true
+		if !stdlib[x] {
+			node(x, indent)
+		}
+		for y := range forward[x] {
+			visit(y, indent+1)
 		}
 	}
 
-	if len(roots) == 0 {
+	keys := make([]string, 0, len(forward))
+	for key := range forward {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if !strings.HasPrefix(key, importpath) {
+			continue
+		}
+		if seen[key] {
+			continue // already covered in a previous visit call
+		}
+		visit(key, 0)
+	}
+
+	if len(lines) == 0 {
 		log.Printf("%s is already fully packaged in Debian", importpath)
 		return nil
 	}
 	log.Printf("Bringing %s to Debian requires packaging the following Go packages:", importpath)
-	for importpath := range roots {
-		fmt.Println(importpath)
+	for _, line := range lines {
+		fmt.Println(line)
 	}
 
 	return nil
