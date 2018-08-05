@@ -644,7 +644,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 	fmt.Fprintf(f, "Subject: ITP: %s -- %s\n", debsrc, description)
 	fmt.Fprintf(f, "Content-Type: text/plain; charset=utf-8\n")
 	fmt.Fprintf(f, "Content-Transfer-Encoding: 8bit\n")
-	fmt.Fprintf(f, "X-Debbugs-CC: debian-devel@lists.debian.org, pkg-go-maintainers@lists.alioth.debian.org\n")
+	fmt.Fprintf(f, "X-Debbugs-CC: debian-devel@lists.debian.org, debian-go@lists.debian.org\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: wnpp\n")
 	fmt.Fprintf(f, "Severity: wishlist\n")
@@ -715,7 +715,7 @@ func execMake(args []string, usage func()) {
 	fs.BoolVar(&allowUnknownHoster,
 		"allow_unknown_hoster",
 		false,
-		"The pkg-go naming conventions (see https://pkg-go.alioth.debian.org/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
+		"The pkg-go naming conventions (see https://go-team.pages.debian.net/packaging.html) use a canonical identifier for the hostname, and the mapping is hardcoded into dh-make-golang. In case you want to package a Go package living on an unknown hoster, you may set this flag to true and double-check that the resulting package name is sane. Contact pkg-go if unsure.")
 
 	var pkgType string
 	fs.StringVar(&pkgType,
