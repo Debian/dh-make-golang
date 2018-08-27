@@ -279,6 +279,26 @@ func runGitCommandIn(dir string, arg ...string) error {
 	return cmd.Run()
 }
 
+func execGitConfig(args ...string) (string, error) {
+	gitArgs := append([]string{"config", "--get", "--null"}, args...)
+	var stdout bytes.Buffer
+	cmd := exec.Command("git", gitArgs...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = ioutil.Discard
+
+	err := cmd.Run()
+	if exitError, ok := err.(*exec.ExitError); ok {
+		if waitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
+			if waitStatus.ExitStatus() == 1 {
+				return "", &ErrNotFound{Key: args[len(args)-1]}
+			}
+		}
+		return "", err
+	}
+
+	return strings.TrimRight(stdout.String(), "\000"), nil
+}
+
 func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -293,13 +313,23 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	if debianName := getDebianName(); debianName != "TODO" {
+	gitName, err := execGitConfig("--global", "user.name")
+	if err {
+		return dir, err
+	}
+
+	if debianName := getDebianName(); debianName != "TODO" && gitName != debianName {
 		if err := runGitCommandIn(dir, "config", "user.name", debianName); err != nil {
 			return dir, err
 		}
 	}
 
-	if debianEmail := getDebianEmail(); debianEmail != "TODO" {
+	gitEmail, err := execGitConfig("--global", "user.email")
+	if err {
+		return dir, err
+	}
+
+	if debianEmail := getDebianEmail(); debianEmail != "TODO" && gitEmail != debianEmail {
 		if err := runGitCommandIn(dir, "config", "user.email", debianEmail); err != nil {
 			return dir, err
 		}
