@@ -496,7 +496,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	sort.Strings(dependencies)
 	builddeps := append([]string{"debhelper (>= 11)", "dh-golang", "golang-any"}, dependencies...)
 	fmt.Fprintf(f, "Build-Depends: %s\n", strings.Join(builddeps, ",\n               "))
-	fmt.Fprintf(f, "Standards-Version: 4.1.4\n")
+	fmt.Fprintf(f, "Standards-Version: 4.2.1\n")
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
@@ -574,6 +574,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	if pkgType == "program" {
 		fmt.Fprintf(f, "override_dh_auto_install:\n")
 		fmt.Fprintf(f, "\tdh_auto_install -- --no-source\n")
+		fmt.Fprintf(f, "\n")
 	}
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
@@ -603,7 +604,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 			return err
 		}
 		defer f.Close()
-		fmt.Fprintf(f, "version=3\n")
+		fmt.Fprintf(f, "version=4\n")
 		fmt.Fprintf(f, `opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/,\`+"\n", debsrc)
 		fmt.Fprintf(f, `uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/ \`+"\n")
 		fmt.Fprintf(f, `  https://%s/tags .*/v?(\d\S*)\.tar\.gz`+"\n", gopkg)
