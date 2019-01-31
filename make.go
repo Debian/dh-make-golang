@@ -494,9 +494,15 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fmt.Fprintf(f, "Uploaders:\n %s <%s>,\n", getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
-	builddeps := append([]string{"debhelper (>= 11)", "dh-golang", "golang-any"}, dependencies...)
-	sort.Strings(builddeps)
+	builddeps := []string{"debhelper (>= 11)", "dh-golang"}
+	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
+	sort.Strings(builddeps_bytype)
 	fmt.Fprintf(f, "Build-Depends:\n %s,\n", strings.Join(builddeps, ",\n "))
+	builddeps_deptype := "Indep"
+	if pkgType == "program" {
+		builddeps_deptype = "Arch"
+	}
+	fmt.Fprintf(f, "Build-Depends-%s:\n %s,\n", builddeps_deptype, strings.Join(builddeps_bytype, ",\n "))
 	fmt.Fprintf(f, "Standards-Version: 4.3.0\n")
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
