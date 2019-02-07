@@ -492,11 +492,18 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Section: devel\n")
 	fmt.Fprintf(f, "Priority: optional\n")
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
-	fmt.Fprintf(f, "Uploaders: %s <%s>\n", getDebianName(), getDebianEmail())
-	sort.Strings(dependencies)
-	builddeps := append([]string{"debhelper (>= 11)", "dh-golang", "golang-any"}, dependencies...)
-	fmt.Fprintf(f, "Build-Depends: %s\n", strings.Join(builddeps, ",\n               "))
-	fmt.Fprintf(f, "Standards-Version: 4.2.1\n")
+	fmt.Fprintf(f, "Uploaders:\n %s <%s>,\n", getDebianName(), getDebianEmail())
+	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
+	builddeps := []string{"debhelper (>= 11)", "dh-golang"}
+	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
+	sort.Strings(builddeps_bytype)
+	fmt.Fprintf(f, "Build-Depends:\n %s,\n", strings.Join(builddeps, ",\n "))
+	builddeps_deptype := "Indep"
+	if pkgType == "program" {
+		builddeps_deptype = "Arch"
+	}
+	fmt.Fprintf(f, "Build-Depends-%s:\n %s,\n", builddeps_deptype, strings.Join(builddeps_bytype, ",\n "))
+	fmt.Fprintf(f, "Standards-Version: 4.3.0\n")
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
@@ -513,7 +520,8 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		fmt.Fprintf(f, "Architecture: all\n")
 		deps = append(deps, dependencies...)
 	}
-	fmt.Fprintf(f, "Depends: %s\n", strings.Join(deps, ",\n         "))
+	sort.Strings(deps)
+	fmt.Fprintf(f, "Depends:\n %s,\n", strings.Join(deps, ",\n "))
 	description, err := getDescriptionForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
@@ -544,20 +552,20 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		copyright = "TODO"
 	}
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
-	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
+	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Files-Excluded:\n")
 	for _, dir := range vendorDirs {
-		fmt.Fprintf(f, "  %s\n", dir)
+		fmt.Fprintf(f, " %s\n", dir)
 	}
-	fmt.Fprintf(f, "  Godeps/_workspace\n")
+	fmt.Fprintf(f, " Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files: *\n")
-	fmt.Fprintf(f, "Copyright: %s\n", copyright)
+	fmt.Fprintf(f, "Files:\n *\n")
+	fmt.Fprintf(f, "Copyright:\n %s\n", copyright)
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files: debian/*\n")
-	fmt.Fprintf(f, "Copyright: %s %s <%s>\n", time.Now().Format("2006"), getDebianName(), getDebianEmail())
+	fmt.Fprintf(f, "Files:\n debian/*\n")
+	fmt.Fprintf(f, "Copyright:\n %s %s <%s>\n", time.Now().Format("2006"), getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "Comment: Debian packaging is licensed under the same terms as upstream\n")
 	fmt.Fprintf(f, "\n")
@@ -577,7 +585,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		fmt.Fprintf(f, "\n")
 	}
 	fmt.Fprintf(f, "%%:\n")
-	fmt.Fprintf(f, "\tdh $@ --buildsystem=golang --with=golang\n")
+	fmt.Fprintf(f, "\tdh $@ ---builddirectory=_build -buildsystem=golang --with=golang\n")
 
 	f, err = os.Create(filepath.Join(dir, "debian", "source", "format"))
 	if err != nil {
