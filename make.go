@@ -475,13 +475,6 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		getDebianEmail(),
 		time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700"))
 
-	f, err = os.Create(filepath.Join(dir, "debian", "compat"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "11\n")
-
 	f, err = os.Create(filepath.Join(dir, "debian", "control"))
 	if err != nil {
 		return err
@@ -494,7 +487,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fmt.Fprintf(f, "Uploaders:\n %s <%s>,\n", getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
-	builddeps := []string{"debhelper (>= 11)", "dh-golang"}
+	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
 	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
 	sort.Strings(builddeps_bytype)
 	fmt.Fprintf(f, "Build-Depends:\n %s,\n", strings.Join(builddeps, ",\n "))
