@@ -578,7 +578,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		fmt.Fprintf(f, "\n")
 	}
 	fmt.Fprintf(f, "%%:\n")
-	fmt.Fprintf(f, "\tdh $@ ---builddirectory=_build -buildsystem=golang --with=golang\n")
+	fmt.Fprintf(f, "\tdh $@ --builddirectory=_build --buildsystem=golang --with=golang\n")
 
 	f, err = os.Create(filepath.Join(dir, "debian", "source", "format"))
 	if err != nil {
