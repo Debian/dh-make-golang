@@ -2,19 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/mattn/go-isatty"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
-
-// #include <unistd.h>
-// #include <stdbool.h>
-//
-// bool stdoutisatty() {
-//   return isatty(STDOUT_FILENO);
-// }
-import "C"
 
 const (
 	_ = 1 << (10 * iota)
@@ -42,9 +35,8 @@ func progressSize(prefix, path string, done chan struct{}) {
 	// previous holds how many bytes the previous line contained, so that we
 	// can clear it in its entirety.
 	var previous int
-	tty := C.stdoutisatty()
 	for {
-		if tty {
+		if isatty.IsTerminal(os.Stdout.Fd()) {
 			var usage int64
 			filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 				if err == nil && info.Mode().IsRegular() {
