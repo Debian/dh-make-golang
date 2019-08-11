@@ -481,12 +481,12 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
-	// TODO: change this once we have a “golang” section.
-	fmt.Fprintf(f, "Section: devel\n")
-	fmt.Fprintf(f, "Priority: optional\n")
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fmt.Fprintf(f, "Uploaders:\n %s <%s>,\n", getDebianName(), getDebianEmail())
-	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
+	// TODO: change this once we have a “golang” section.
+	fmt.Fprintf(f, "Section: devel\n")
+	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
+	fmt.Fprintf(f, "Priority: optional\n")
 	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
 	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
 	sort.Strings(builddeps_bytype)
@@ -497,17 +497,16 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	fmt.Fprintf(f, "Build-Depends-%s:\n %s,\n", builddeps_deptype, strings.Join(builddeps_bytype, ",\n "))
 	fmt.Fprintf(f, "Standards-Version: 4.4.0\n")
-	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
+	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
+	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
 	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
-	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debbin)
 	deps := []string{"${misc:Depends}"}
 	if pkgType == "program" {
 		fmt.Fprintf(f, "Architecture: any\n")
-		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 		deps = append(deps, "${shlibs:Depends}")
 	} else {
 		fmt.Fprintf(f, "Architecture: all\n")
@@ -515,6 +514,9 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	sort.Strings(deps)
 	fmt.Fprintf(f, "Depends:\n %s,\n", strings.Join(deps, ",\n "))
+	if pkgType == "program" {
+		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
+	}
 	description, err := getDescriptionForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
