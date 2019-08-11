@@ -13,7 +13,9 @@ var (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [globalflags] <command> [flags] <args>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "%s is a tool that converts Go packages into Debian package source.\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "Usage:\n\t%s [globalflags] <command> [flags] <args>\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "%s commands:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\tmake\t\t\tcreate a Debian package\n")
@@ -21,8 +23,10 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\testimate\t\testimate the amount of work for a package\n")
 	fmt.Fprintf(os.Stderr, "\tcreate-salsa-project\tcreate a project for hosting Debian packaging\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "For backwards compatibility, when no command is specified, the make command is executed.\n")
-	fmt.Fprintf(os.Stderr, "To learn more about a command, run %s <command> -help, e.g. %s make -help\n", os.Args[0], os.Args[0])
+	fmt.Fprintf(os.Stderr, "For backwards compatibility, when no command is specified,\nthe make command is executed.\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "To learn more about a command, run \"%s <command> -help\",\ne.g. \"%s make -help\"\n", os.Args[0], os.Args[0])
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 func main() {
