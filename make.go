@@ -293,6 +293,11 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
+    if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
+		return dir, err
+	}
+
+
 	if debianName := getDebianName(); debianName != "TODO" {
 		if err := runGitCommandIn(dir, "config", "user.name", debianName); err != nil {
 			return dir, err
@@ -317,7 +322,7 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	cmd := exec.Command("gbp", "import-orig", "--pristine-tar", "--no-interactive", filepath.Join(wd, orig))
+	cmd := exec.Command("gbp", "import-orig", "--debian-branch=debian/sid", "--no-interactive", filepath.Join(wd, orig))
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -593,7 +598,9 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "[DEFAULT]\n")
-	fmt.Fprintf(f, "pristine-tar = True\n")
+	fmt.Fprintf(f, "debian-branch=debian/sid\n\n")
+	fmt.Fprintf(f, "[clone]\n")
+	fmt.Fprintf(f, "postclone=origtargz\n")
 
 	if err := os.Chmod(filepath.Join(dir, "debian", "rules"), 0755); err != nil {
 		return err
