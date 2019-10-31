@@ -496,7 +496,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		builddeps_deptype = "Arch"
 	}
 	fmt.Fprintf(f, "Build-Depends-%s:\n %s,\n", builddeps_deptype, strings.Join(builddeps_bytype, ",\n "))
-	fmt.Fprintf(f, "Standards-Version: 4.4.0\n")
+	fmt.Fprintf(f, "Standards-Version: 4.4.1\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
