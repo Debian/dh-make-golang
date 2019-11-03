@@ -19,6 +19,11 @@ import (
 	"golang.org/x/tools/go/vcs"
 )
 
+var (
+	dep14       bool
+	pristineTar bool
+)
+
 func passthroughEnv() []string {
 	var relevantVariables = []string{
 		"HOME",
@@ -599,9 +604,14 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "[DEFAULT]\n")
-	fmt.Fprintf(f, "debian-branch=debian/sid\n\n")
-	fmt.Fprintf(f, "[clone]\n")
-	fmt.Fprintf(f, "postclone=origtargz\n")
+
+	if dep14 {
+		fmt.Fprintf(f, "debian-branch = debian/sid\n")
+	}
+
+	if pristineTar {
+		fmt.Fprintf(f, "pristine-tar = True\n")
+	}
 
 	if err := os.Chmod(filepath.Join(dir, "debian", "rules"), 0755); err != nil {
 		return err
@@ -704,7 +714,7 @@ func execMake(args []string, usage func()) {
 		fs.Usage = usage
 	} else {
 		fs.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Usage: %s [make] <go-package-importpath>\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "Usage: %s [make] [FLAG]... <go-package-importpath>\n", os.Args[0])
 			fmt.Fprintf(os.Stderr, "Example: %s make golang.org/x/oauth2\n", os.Args[0])
 			fmt.Fprintf(os.Stderr, "\n")
 			fmt.Fprintf(os.Stderr, "\"%s make\" downloads the specified Go package from the Internet,\nand creates new files and directories in the current working directory.\n", os.Args[0])
@@ -725,6 +735,16 @@ func execMake(args []string, usage func()) {
 		"allow_unknown_hoster",
 		false,
 		"The pkg-go naming conventions use a canonical identifier for\nthe hostname (see https://go-team.pages.debian.net/packaging.html),\nand the mapping is hardcoded into dh-make-golang.\nIn case you want to package a Go package living on an unknown hoster,\nyou may set this flag to true and double-check that the resulting\npackage name is sane. Contact pkg-go if unsure.")
+
+	fs.BoolVar(&dep14,
+		"dep14",
+		true,
+		"Follow DEP-14 branch naming and use debian/sid (instead of master)\nas the default debian-branch.")
+
+	fs.BoolVar(&pristineTar,
+		"pristine-tar",
+		false,
+		"Keep using a pristine-tar branch as in the old workflow.\nStrongly discouraged, see \"pristine-tar considered harmful\"\n https://michael.stapelberg.ch/posts/2018-01-28-pristine-tar/\nand the \"Drop pristine-tar branches\" section at\nhttps://go-team.pages.debian.net/workflow-changes.html")
 
 	var pkgType string
 	fs.StringVar(&pkgType,
