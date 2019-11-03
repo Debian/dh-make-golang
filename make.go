@@ -293,10 +293,9 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-    if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
+	if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
 		return dir, err
 	}
-
 
 	if debianName := getDebianName(); debianName != "TODO" {
 		if err := runGitCommandIn(dir, "config", "user.name", debianName); err != nil {
