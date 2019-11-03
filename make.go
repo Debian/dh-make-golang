@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	wrapAndSort string
 	dep14       bool
 	pristineTar bool
 )
@@ -461,6 +462,23 @@ func getDebianEmail() string {
 	return "TODO"
 }
 
+func fprintfControlField(f *os.File, field string, valueArray []string) {
+	switch wrapAndSort {
+	case "a":
+		// Current default, also what "cme fix dpkg" generates
+		fmt.Fprintf(f, "%s: %s\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
+	case "at", "ta":
+		// -t, --trailing-comma, preferred by Martina Ferrari
+		// and currently used in quite a few packages
+		fmt.Fprintf(f, "%s: %s,\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
+	case "ast", "ats", "sat", "sta", "tas", "tsa":
+		// -s, --short-indent too, proposed by Guillem Jover
+		fmt.Fprintf(f, "%s:\n %s,\n", field, strings.Join(valueArray, ",\n "))
+	default:
+		log.Fatalf("%q is not a valid value for -wrap-and-sort, aborting.", wrapAndSort)
+	}
+}
+
 func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, dependencies []string, vendorDirs []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
@@ -491,7 +509,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	defer f.Close()
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
-	fmt.Fprintf(f, "Uploaders:\n %s <%s>,\n", getDebianName(), getDebianEmail())
+	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
 	// TODO: change this once we have a “golang” section.
 	fmt.Fprintf(f, "Section: devel\n")
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
@@ -499,12 +517,12 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
 	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
 	sort.Strings(builddeps_bytype)
-	fmt.Fprintf(f, "Build-Depends:\n %s,\n", strings.Join(builddeps, ",\n "))
+	fprintfControlField(f, "Build-Depends", builddeps)
 	builddeps_deptype := "Indep"
 	if pkgType == "program" {
 		builddeps_deptype = "Arch"
 	}
-	fmt.Fprintf(f, "Build-Depends-%s:\n %s,\n", builddeps_deptype, strings.Join(builddeps_bytype, ",\n "))
+	fprintfControlField(f, "Build-Depends-"+builddeps_deptype, builddeps_bytype)
 	fmt.Fprintf(f, "Standards-Version: 4.4.1\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
@@ -522,7 +540,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		deps = append(deps, dependencies...)
 	}
 	sort.Strings(deps)
-	fmt.Fprintf(f, "Depends:\n %s,\n", strings.Join(deps, ",\n "))
+	fprintfControlField(f, "Depends", deps)
 	if pkgType == "program" {
 		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	}
@@ -735,6 +753,11 @@ func execMake(args []string, usage func()) {
 		"allow_unknown_hoster",
 		false,
 		"The pkg-go naming conventions use a canonical identifier for\nthe hostname (see https://go-team.pages.debian.net/packaging.html),\nand the mapping is hardcoded into dh-make-golang.\nIn case you want to package a Go package living on an unknown hoster,\nyou may set this flag to true and double-check that the resulting\npackage name is sane. Contact pkg-go if unsure.")
+
+	fs.StringVar(&wrapAndSort,
+		"wrap-and-sort",
+		"a",
+		"Set how the various multi-line fields in debian/control are formatted.\nValid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\nfor more information.")
 
 	fs.BoolVar(&dep14,
 		"dep14",
