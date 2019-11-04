@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	wrapAndSort string
 	dep14       bool
 	pristineTar bool
+	wrapAndSort string
 )
 
 func passthroughEnv() []string {
@@ -754,11 +754,6 @@ func execMake(args []string, usage func()) {
 		false,
 		"The pkg-go naming conventions use a canonical identifier for\nthe hostname (see https://go-team.pages.debian.net/packaging.html),\nand the mapping is hardcoded into dh-make-golang.\nIn case you want to package a Go package living on an unknown hoster,\nyou may set this flag to true and double-check that the resulting\npackage name is sane. Contact pkg-go if unsure.")
 
-	fs.StringVar(&wrapAndSort,
-		"wrap-and-sort",
-		"a",
-		"Set how the various multi-line fields in debian/control are formatted.\nValid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\nfor more information.")
-
 	fs.BoolVar(&dep14,
 		"dep14",
 		true,
@@ -774,6 +769,11 @@ func execMake(args []string, usage func()) {
 		"type",
 		"",
 		"One of \"library\" or \"program\"")
+
+	fs.StringVar(&wrapAndSort,
+		"wrap-and-sort",
+		"a",
+		"Set how the various multi-line fields in debian/control are formatted.\nValid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\nfor more information.")
 
 	err := fs.Parse(args)
 	if err != nil {
