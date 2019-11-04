@@ -11,10 +11,13 @@ arch:
   - amd64
   - arm64
 
-matrix:
+jobs:
   allow_failures:
     - go: master
   fast_finish: true
+  exclude:
+    - arch: arm64
+      go: 1.11.x
 
 cache:
   directories:
