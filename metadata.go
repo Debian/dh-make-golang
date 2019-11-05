@@ -138,9 +138,9 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 			fulltext = " TODO"
 		}
 		return deblicense, fulltext, nil
-	} else {
-		return "TODO", " TODO", nil
 	}
+
+	return "TODO", " TODO", nil
 }
 
 func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {

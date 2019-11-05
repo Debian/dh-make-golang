@@ -515,14 +515,14 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Priority: optional\n")
 	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
-	builddeps_bytype := append([]string{"golang-any"}, dependencies...)
-	sort.Strings(builddeps_bytype)
+	builddepsByType := append([]string{"golang-any"}, dependencies...)
+	sort.Strings(builddepsByType)
 	fprintfControlField(f, "Build-Depends", builddeps)
-	builddeps_deptype := "Indep"
+	builddepsDepType := "Indep"
 	if pkgType == "program" {
-		builddeps_deptype = "Arch"
+		builddepsDepType = "Arch"
 	}
-	fprintfControlField(f, "Build-Depends-"+builddeps_deptype, builddeps_bytype)
+	fprintfControlField(f, "Build-Depends-"+builddepsDepType, builddepsByType)
 	fmt.Fprintf(f, "Standards-Version: 4.4.1\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
