@@ -14,16 +14,41 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
-
 	if err := os.Mkdir(filepath.Join(dir, "debian", "source"), 0755); err != nil {
 		return err
 	}
 
+	if err := writeDebianChangelog(dir, debsrc, debversion); err != nil {
+		return err
+	}
+	if err := writeDebianControl(dir, gopkg, debsrc, debbin, pkgType, dependencies); err != nil {
+		return err
+	}
+	if err := writeDebianCopyright(dir, gopkg, vendorDirs); err != nil {
+		return err
+	}
+	if err := writeDebianRules(dir, pkgType); err != nil {
+		return err
+	}
+	if err := writeDebianSourceFormat(dir); err != nil {
+		return err
+	}
+	if err := writeDebianGbpConf(dir); err != nil {
+		return err
+	}
+	if err := writeDebianWatch(dir, gopkg, debsrc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeDebianChangelog(dir, debsrc, debversion string) error {
 	f, err := os.Create(filepath.Join(dir, "debian", "changelog"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
 	fmt.Fprintf(f, "%s (%s) UNRELEASED; urgency=medium\n", debsrc, debversion)
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "  * Initial release (Closes: TODO)\n")
@@ -33,11 +58,16 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		getDebianEmail(),
 		time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700"))
 
-	f, err = os.Create(filepath.Join(dir, "debian", "control"))
+	return nil
+}
+
+func writeDebianControl(dir, gopkg, debsrc, debbin, pkgType string, dependencies []string) error {
+	f, err := os.Create(filepath.Join(dir, "debian", "control"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
@@ -88,22 +118,29 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	}
 	fmt.Fprintf(f, " %s\n", longdescription)
 
+	return nil
+}
+
+func writeDebianCopyright(dir, gopkg string, vendorDirs []string) error {
 	license, fulltext, err := getLicenseForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine license for %q: %v\n", gopkg, err)
 		license = "TODO"
 		fulltext = "TODO"
 	}
-	f, err = os.Create(filepath.Join(dir, "debian", "copyright"))
+
+	f, err := os.Create(filepath.Join(dir, "debian", "copyright"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
 	_, copyright, err := getAuthorAndCopyrightForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine copyright for %q: %v\n", gopkg, err)
 		copyright = "TODO"
 	}
+
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
@@ -125,11 +162,16 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, fulltext)
 
-	f, err = os.Create(filepath.Join(dir, "debian", "rules"))
+	return nil
+}
+
+func writeDebianRules(dir, pkgType string) error {
+	f, err := os.Create(filepath.Join(dir, "debian", "rules"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
@@ -140,44 +182,54 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		fmt.Fprintf(f, "\tdh_auto_install -- --no-source\n")
 	}
 
-	f, err = os.Create(filepath.Join(dir, "debian", "source", "format"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "3.0 (quilt)\n")
-
-	f, err = os.Create(filepath.Join(dir, "debian", "gbp.conf"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "[DEFAULT]\n")
-
-	if dep14 {
-		fmt.Fprintf(f, "debian-branch = debian/sid\n")
-	}
-
-	if pristineTar {
-		fmt.Fprintf(f, "pristine-tar = True\n")
-	}
-
 	if err := os.Chmod(filepath.Join(dir, "debian", "rules"), 0755); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func writeDebianSourceFormat(dir string) error {
+	f, err := os.Create(filepath.Join(dir, "debian", "source", "format"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, "3.0 (quilt)\n")
+	return nil
+}
+
+func writeDebianGbpConf(dir string) error {
+	f, err := os.Create(filepath.Join(dir, "debian", "gbp.conf"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, "[DEFAULT]\n")
+	if dep14 {
+		fmt.Fprintf(f, "debian-branch = debian/sid\n")
+	}
+	if pristineTar {
+		fmt.Fprintf(f, "pristine-tar = True\n")
+	}
+	return nil
+}
+
+func writeDebianWatch(dir, gopkg, debsrc string) error {
 	if strings.HasPrefix(gopkg, "github.com/") {
-		f, err = os.Create(filepath.Join(dir, "debian", "watch"))
+		f, err := os.Create(filepath.Join(dir, "debian", "watch"))
 		if err != nil {
 			return err
 		}
 		defer f.Close()
+
 		fmt.Fprintf(f, "version=4\n")
 		fmt.Fprintf(f, `opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/,\`+"\n", debsrc)
 		fmt.Fprintf(f, `uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/ \`+"\n")
 		fmt.Fprintf(f, `  https://%s/tags .*/v?(\d\S*)\.tar\.gz`+"\n", gopkg)
 	}
-
 	return nil
 }
 
