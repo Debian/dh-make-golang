@@ -46,12 +46,12 @@ func TestNormalizeDebianProgramName(t *testing.T) {
 
 var nameFromGoPkg = []struct {
 	in  string
-	t   string
+	t   packageType
 	out string
 }{
-	{"github.com/dh-make-golang", "program", "dh-make-golang"},
-	{"github.com/DH-make-golang", "", "golang-github-dh-make-golang"},
-	{"github.com/dh_make_golang", "", "golang-github-dh-make-golang"},
+	{"github.com/Debian/dh-make-golang", typeProgram, "dh-make-golang"},
+	{"github.com/Debian/DH-make-golang", typeGuess, "golang-github-debian-dh-make-golang"},
+	{"github.com/Debian/dh_make_golang", typeGuess, "golang-github-debian-dh-make-golang"},
 }
 
 func TestDebianNameFromGopkg(t *testing.T) {

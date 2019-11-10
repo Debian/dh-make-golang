@@ -17,6 +17,16 @@ import (
 	"golang.org/x/tools/go/vcs"
 )
 
+type packageType int
+
+const (
+	typeGuess packageType = iota
+	typeLibrary
+	typeProgram
+	typeLibraryProgram
+	typeProgramLibrary
+)
+
 var (
 	dep14       bool
 	pristineTar bool
@@ -388,39 +398,40 @@ func normalizeDebianProgramName(str string) string {
 }
 
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
-func debianNameFromGopkg(gopkg, t string, allowUnknownHoster bool) string {
+func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) string {
 	parts := strings.Split(gopkg, "/")
 
-	if t == "program" {
+	if t == typeProgram || t == typeProgramLibrary {
 		return normalizeDebianProgramName(parts[len(parts)-1])
 	}
 
 	host := parts[0]
-	if host == "github.com" {
+	switch host {
+	case "github.com":
 		host = "github"
-	} else if host == "code.google.com" {
+	case "code.google.com":
 		host = "googlecode"
-	} else if host == "cloud.google.com" {
+	case "cloud.google.com":
 		host = "googlecloud"
-	} else if host == "gopkg.in" {
+	case "gopkg.in":
 		host = "gopkg"
-	} else if host == "golang.org" {
+	case "golang.org":
 		host = "golang"
-	} else if host == "google.golang.org" {
+	case "google.golang.org":
 		host = "google"
-	} else if host == "bitbucket.org" {
+	case "bitbucket.org":
 		host = "bitbucket"
-	} else if host == "bazil.org" {
+	case "bazil.org":
 		host = "bazil"
-	} else if host == "pault.ag" {
+	case "pault.ag":
 		host = "pault"
-	} else if host == "howett.net" {
+	case "howett.net":
 		host = "howett"
-	} else if host == "go4.org" {
+	case "go4.org":
 		host = "go4"
-	} else if host == "salsa.debian.org" {
+	case "salsa.debian.org":
 		host = "debian"
-	} else {
+	default:
 		if allowUnknownHoster {
 			suffix, _ := publicsuffix.PublicSuffix(host)
 			host = host[:len(host)-len(suffix)-len(".")]
@@ -574,11 +585,15 @@ func execMake(args []string, usage func()) {
 		false,
 		"Keep using a pristine-tar branch as in the old workflow.\nStrongly discouraged, see \"pristine-tar considered harmful\"\n https://michael.stapelberg.ch/posts/2018-01-28-pristine-tar/\nand the \"Drop pristine-tar branches\" section at\nhttps://go-team.pages.debian.net/workflow-changes.html")
 
-	var pkgType string
-	fs.StringVar(&pkgType,
+	var pkgTypeString string
+	fs.StringVar(&pkgTypeString,
 		"type",
 		"",
-		"One of \"library\" or \"program\"")
+		"Set package type, one of:\n"+
+			` * "library" (aliases: "lib", "l", "dev")`+"\n"+
+			` * "program" (aliases: "prog", "p")`+"\n"+
+			` * "library+program" (aliases: "lib+prog", "l+p", "both")`+"\n"+
+			` * "program+library" (aliases: "prog+lib", "p+l", "combined")`)
 
 	fs.StringVar(&wrapAndSort,
 		"wrap-and-sort",
@@ -608,9 +623,33 @@ func execMake(args []string, usage func()) {
 		gopkg = rr.Root
 	}
 
-	debsrc := debianNameFromGopkg(gopkg, "library", allowUnknownHoster)
+	// Set default source and binary package names.
+	// Note that debsrc may change depending on the actual package type.
+	debsrc := debianNameFromGopkg(gopkg, typeLibrary, allowUnknownHoster)
+	debLib := debsrc + "-dev"
+	debProg := debianNameFromGopkg(gopkg, typeProgram, allowUnknownHoster)
 
-	if strings.TrimSpace(pkgType) != "" {
+	var pkgType packageType
+
+	switch strings.TrimSpace(pkgTypeString) {
+	case "", "guess":
+		pkgType = typeGuess
+	case "library", "lib", "l", "dev":
+		pkgType = typeLibrary
+	case "program", "prog", "p":
+		pkgType = typeProgram
+	case "library+program", "lib+prog", "l+p", "both":
+		// Example packages: golang-github-alecthomas-chroma,
+		// golang-github-tdewolff-minify, golang-github-spf13-viper
+		pkgType = typeLibraryProgram
+	case "program+library", "prog+lib", "p+l", "combined":
+		// Example package: hugo
+		pkgType = typeProgramLibrary
+	default:
+		log.Fatalf("-type=%q not recognized, aborting\n", pkgTypeString)
+	}
+
+	if pkgType != typeGuess {
 		debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
@@ -644,18 +683,14 @@ func execMake(args []string, usage func()) {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
 
-	if strings.TrimSpace(pkgType) == "" {
+	if pkgType == typeGuess {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
-			pkgType = "program"
+			pkgType = typeProgram
 			debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
 		} else {
-			pkgType = "library"
+			pkgType = typeLibrary
 		}
-	}
-	debbin := debsrc + "-dev"
-	if pkgType == "program" {
-		debbin = debsrc
 	}
 
 	if _, err := os.Stat(debsrc); err == nil {
@@ -692,7 +727,7 @@ func execMake(args []string, usage func()) {
 	for _, dep := range u.repoDeps {
 		if len(golangBinaries) == 0 {
 			// fall back to heuristic
-			debdependencies = append(debdependencies, debianNameFromGopkg(dep, "library", allowUnknownHoster)+"-dev")
+			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, allowUnknownHoster)+"-dev")
 			continue
 		}
 		bin, ok := golangBinaries[dep]
@@ -703,7 +738,7 @@ func execMake(args []string, usage func()) {
 		debdependencies = append(debdependencies, bin)
 	}
 
-	if err := writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType, debdependencies, u.vendorDirs); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion, pkgType, debdependencies, u.vendorDirs); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
@@ -714,6 +749,20 @@ func execMake(args []string, usage func()) {
 
 	log.Printf("\n")
 	log.Printf("Packaging successfully created in %s\n", dir)
+	log.Printf("\n")
+	log.Printf("    Source: %s\n", debsrc)
+	switch pkgType {
+	case typeLibrary:
+		log.Printf("    Package: %s\n", debLib)
+	case typeProgram:
+		log.Printf("    Package: %s\n", debProg)
+	case typeLibraryProgram:
+		log.Printf("    Package: %s\n", debLib)
+		log.Printf("    Package: %s\n", debProg)
+	case typeProgramLibrary:
+		log.Printf("    Package: %s\n", debProg)
+		log.Printf("    Package: %s\n", debLib)
+	}
 	log.Printf("\n")
 	log.Printf("Resolve all TODOs in %s, then email it out:\n", itpname)
 	log.Printf("    sendmail -t < %s\n", itpname)

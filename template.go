@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, dependencies []string, vendorDirs []string) error {
+func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string, pkgType packageType, dependencies []string, vendorDirs []string) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -21,7 +21,7 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 	if err := writeDebianChangelog(dir, debsrc, debversion); err != nil {
 		return err
 	}
-	if err := writeDebianControl(dir, gopkg, debsrc, debbin, pkgType, dependencies); err != nil {
+	if err := writeDebianControl(dir, gopkg, debsrc, debLib, debProg, pkgType, dependencies); err != nil {
 		return err
 	}
 	if err := writeDebianCopyright(dir, gopkg, vendorDirs); err != nil {
@@ -37,6 +37,9 @@ func writeTemplates(dir, gopkg, debsrc, debbin, debversion, pkgType string, depe
 		return err
 	}
 	if err := writeDebianWatch(dir, gopkg, debsrc); err != nil {
+		return err
+	}
+	if err := writeDebianPackageInstall(dir, debLib, debProg, pkgType); err != nil {
 		return err
 	}
 	return nil
@@ -61,12 +64,69 @@ func writeDebianChangelog(dir, debsrc, debversion string) error {
 	return nil
 }
 
-func writeDebianControl(dir, gopkg, debsrc, debbin, pkgType string, dependencies []string) error {
+func fprintfControlField(f *os.File, field string, valueArray []string) {
+	switch wrapAndSort {
+	case "a":
+		// Current default, also what "cme fix dpkg" generates
+		fmt.Fprintf(f, "%s: %s\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
+	case "at", "ta":
+		// -t, --trailing-comma, preferred by Martina Ferrari
+		// and currently used in quite a few packages
+		fmt.Fprintf(f, "%s: %s,\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
+	case "ast", "ats", "sat", "sta", "tas", "tsa":
+		// -s, --short-indent too, proposed by Guillem Jover
+		fmt.Fprintf(f, "%s:\n %s,\n", field, strings.Join(valueArray, ",\n "))
+	default:
+		log.Fatalf("%q is not a valid value for -wrap-and-sort, aborting.", wrapAndSort)
+	}
+}
+
+func addDescription(f *os.File, gopkg, comment string) {
+	description, err := getDescriptionForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
+		description = "TODO: short description"
+	}
+	fmt.Fprintf(f, "Description: %s %s\n", description, comment)
+	longdescription, err := getLongDescriptionForGopkg(gopkg)
+	if err != nil {
+		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
+		longdescription = "TODO: long description"
+	}
+	fmt.Fprintf(f, " %s\n", longdescription)
+}
+
+func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) {
+	fmt.Fprintf(f, "\n")
+	fmt.Fprintf(f, "Package: %s\n", debLib)
+	deps := []string{"${misc:Depends}"}
+	fmt.Fprintf(f, "Architecture: all\n")
+	deps = append(deps, dependencies...)
+	sort.Strings(deps)
+	fprintfControlField(f, "Depends", deps)
+	addDescription(f, gopkg, "(library)")
+}
+
+func addProgramPackage(f *os.File, gopkg, debProg string, dependencies []string) {
+	fmt.Fprintf(f, "\n")
+	fmt.Fprintf(f, "Package: %s\n", debProg)
+	deps := []string{"${misc:Depends}"}
+	fmt.Fprintf(f, "Architecture: any\n")
+	deps = append(deps, "${shlibs:Depends}")
+	sort.Strings(deps)
+	fprintfControlField(f, "Depends", deps)
+	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
+	addDescription(f, gopkg, "(program)")
+}
+
+func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType packageType, dependencies []string) error {
 	f, err := os.Create(filepath.Join(dir, "debian", "control"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+
+	// Source package:
 
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
@@ -75,48 +135,48 @@ func writeDebianControl(dir, gopkg, debsrc, debbin, pkgType string, dependencies
 	fmt.Fprintf(f, "Section: devel\n")
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Priority: optional\n")
+
 	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
 	builddepsByType := append([]string{"golang-any"}, dependencies...)
 	sort.Strings(builddepsByType)
-	fprintfControlField(f, "Build-Depends", builddeps)
-	builddepsDepType := "Indep"
-	if pkgType == "program" {
-		builddepsDepType = "Arch"
+	switch pkgType {
+	case typeLibrary, typeProgram:
+		fprintfControlField(f, "Build-Depends", builddeps)
+		builddepsDepType := "Indep"
+		if pkgType == typeProgram {
+			builddepsDepType = "Arch"
+		}
+		fprintfControlField(f, "Build-Depends-"+builddepsDepType, builddepsByType)
+	case typeLibraryProgram, typeProgramLibrary:
+		builddeps = append(builddeps, builddepsByType...)
+		fprintfControlField(f, "Build-Depends", builddeps)
+	default:
+		log.Fatalf("Invalid pkgType %d in writeDebianControl(), aborting", pkgType)
 	}
-	fprintfControlField(f, "Build-Depends-"+builddepsDepType, builddepsByType)
+
 	fmt.Fprintf(f, "Standards-Version: 4.4.1\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
 	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
-	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Package: %s\n", debbin)
-	deps := []string{"${misc:Depends}"}
-	if pkgType == "program" {
-		fmt.Fprintf(f, "Architecture: any\n")
-		deps = append(deps, "${shlibs:Depends}")
-	} else {
-		fmt.Fprintf(f, "Architecture: all\n")
-		deps = append(deps, dependencies...)
+
+	// Binary package(s):
+
+	switch pkgType {
+	case typeLibrary:
+		addLibraryPackage(f, gopkg, debLib, dependencies)
+	case typeProgram:
+		addProgramPackage(f, gopkg, debProg, dependencies)
+	case typeLibraryProgram:
+		addLibraryPackage(f, gopkg, debLib, dependencies)
+		addProgramPackage(f, gopkg, debProg, dependencies)
+	case typeProgramLibrary:
+		addProgramPackage(f, gopkg, debProg, dependencies)
+		addLibraryPackage(f, gopkg, debLib, dependencies)
+	default:
+		log.Fatalf("Invalid pkgType %d in writeDebianControl(), aborting", pkgType)
 	}
-	sort.Strings(deps)
-	fprintfControlField(f, "Depends", deps)
-	if pkgType == "program" {
-		fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
-	}
-	description, err := getDescriptionForGopkg(gopkg)
-	if err != nil {
-		log.Printf("Could not determine description for %q: %v\n", gopkg, err)
-		description = "TODO: short description"
-	}
-	fmt.Fprintf(f, "Description: %s\n", description)
-	longdescription, err := getLongDescriptionForGopkg(gopkg)
-	if err != nil {
-		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
-		longdescription = "TODO: long description"
-	}
-	fmt.Fprintf(f, " %s\n", longdescription)
 
 	return nil
 }
@@ -165,7 +225,7 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string) error {
 	return nil
 }
 
-func writeDebianRules(dir, pkgType string) error {
+func writeDebianRules(dir string, pkgType packageType) error {
 	f, err := os.Create(filepath.Join(dir, "debian", "rules"))
 	if err != nil {
 		return err
@@ -176,7 +236,7 @@ func writeDebianRules(dir, pkgType string) error {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
 	fmt.Fprintf(f, "\tdh $@ --builddirectory=_build --buildsystem=golang --with=golang\n")
-	if pkgType == "program" {
+	if pkgType == typeProgram {
 		fmt.Fprintf(f, "\n")
 		fmt.Fprintf(f, "override_dh_auto_install:\n")
 		fmt.Fprintf(f, "\tdh_auto_install -- --no-source\n")
@@ -233,19 +293,21 @@ func writeDebianWatch(dir, gopkg, debsrc string) error {
 	return nil
 }
 
-func fprintfControlField(f *os.File, field string, valueArray []string) {
-	switch wrapAndSort {
-	case "a":
-		// Current default, also what "cme fix dpkg" generates
-		fmt.Fprintf(f, "%s: %s\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
-	case "at", "ta":
-		// -t, --trailing-comma, preferred by Martina Ferrari
-		// and currently used in quite a few packages
-		fmt.Fprintf(f, "%s: %s,\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
-	case "ast", "ats", "sat", "sta", "tas", "tsa":
-		// -s, --short-indent too, proposed by Guillem Jover
-		fmt.Fprintf(f, "%s:\n %s,\n", field, strings.Join(valueArray, ",\n "))
-	default:
-		log.Fatalf("%q is not a valid value for -wrap-and-sort, aborting.", wrapAndSort)
+func writeDebianPackageInstall(dir, debLib, debProg string, pkgType packageType) error {
+	if pkgType == typeLibraryProgram || pkgType == typeProgramLibrary {
+		f, err := os.Create(filepath.Join(dir, "debian", debProg+".install"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "usr/bin\n")
+
+		f, err = os.Create(filepath.Join(dir, "debian", debLib+".install"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "usr/share\n")
 	}
+	return nil
 }
