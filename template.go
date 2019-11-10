@@ -10,7 +10,9 @@ import (
 	"time"
 )
 
-func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string, pkgType packageType, dependencies []string, vendorDirs []string) error {
+func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
+	pkgType packageType, dependencies []string, vendorDirs []string,
+	dep14, pristineTar bool) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -33,7 +35,7 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string, pkgT
 	if err := writeDebianSourceFormat(dir); err != nil {
 		return err
 	}
-	if err := writeDebianGbpConf(dir); err != nil {
+	if err := writeDebianGbpConf(dir, dep14, pristineTar); err != nil {
 		return err
 	}
 	if err := writeDebianWatch(dir, gopkg, debsrc); err != nil {
@@ -260,7 +262,7 @@ func writeDebianSourceFormat(dir string) error {
 	return nil
 }
 
-func writeDebianGbpConf(dir string) error {
+func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 	f, err := os.Create(filepath.Join(dir, "debian", "gbp.conf"))
 	if err != nil {
 		return err

@@ -27,11 +27,7 @@ const (
 	typeProgramLibrary
 )
 
-var (
-	dep14       bool
-	pristineTar bool
-	wrapAndSort string
-)
+var wrapAndSort string
 
 func passthroughEnv() []string {
 	var relevantVariables = []string{
@@ -575,11 +571,13 @@ func execMake(args []string, usage func()) {
 		false,
 		"The pkg-go naming conventions use a canonical identifier for\nthe hostname (see https://go-team.pages.debian.net/packaging.html),\nand the mapping is hardcoded into dh-make-golang.\nIn case you want to package a Go package living on an unknown hoster,\nyou may set this flag to true and double-check that the resulting\npackage name is sane. Contact pkg-go if unsure.")
 
+	var dep14 bool
 	fs.BoolVar(&dep14,
 		"dep14",
 		true,
 		"Follow DEP-14 branch naming and use debian/sid (instead of master)\nas the default debian-branch.")
 
+	var pristineTar bool
 	fs.BoolVar(&pristineTar,
 		"pristine-tar",
 		false,
@@ -738,7 +736,9 @@ func execMake(args []string, usage func()) {
 		debdependencies = append(debdependencies, bin)
 	}
 
-	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion, pkgType, debdependencies, u.vendorDirs); err != nil {
+	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion,
+		pkgType, debdependencies, u.vendorDirs,
+		dep14, pristineTar); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 
