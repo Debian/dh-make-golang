@@ -563,25 +563,37 @@ func execMake(args []string, usage func()) {
 	fs.StringVar(&gitRevision,
 		"git_revision",
 		"",
-		"git revision (see gitrevisions(7)) of the specified Go package\nto check out, defaulting to the default behavior of git clone.\nUseful in case you do not want to package e.g. current HEAD.")
+		"git revision (see gitrevisions(7)) of the specified Go package\n"+
+			"to check out, defaulting to the default behavior of git clone.\n"+
+			"Useful in case you do not want to package e.g. current HEAD.")
 
 	var allowUnknownHoster bool
 	fs.BoolVar(&allowUnknownHoster,
 		"allow_unknown_hoster",
 		false,
-		"The pkg-go naming conventions use a canonical identifier for\nthe hostname (see https://go-team.pages.debian.net/packaging.html),\nand the mapping is hardcoded into dh-make-golang.\nIn case you want to package a Go package living on an unknown hoster,\nyou may set this flag to true and double-check that the resulting\npackage name is sane. Contact pkg-go if unsure.")
+		"The pkg-go naming conventions use a canonical identifier for\n"+
+			"the hostname (see https://go-team.pages.debian.net/packaging.html),\n"+
+			"and the mapping is hardcoded into dh-make-golang.\n"+
+			"In case you want to package a Go package living on an unknown hoster,\n"+
+			"you may set this flag to true and double-check that the resulting\n"+
+			"package name is sane. Contact pkg-go if unsure.")
 
 	var dep14 bool
 	fs.BoolVar(&dep14,
 		"dep14",
 		true,
-		"Follow DEP-14 branch naming and use debian/sid (instead of master)\nas the default debian-branch.")
+		"Follow DEP-14 branch naming and use debian/sid (instead of master)\n"+
+			"as the default debian-branch.")
 
 	var pristineTar bool
 	fs.BoolVar(&pristineTar,
 		"pristine-tar",
 		false,
-		"Keep using a pristine-tar branch as in the old workflow.\nStrongly discouraged, see \"pristine-tar considered harmful\"\n https://michael.stapelberg.ch/posts/2018-01-28-pristine-tar/\nand the \"Drop pristine-tar branches\" section at\nhttps://go-team.pages.debian.net/workflow-changes.html")
+		"Keep using a pristine-tar branch as in the old workflow.\n"+
+			"Strongly discouraged, see \"pristine-tar considered harmful\"\n"+
+			"https://michael.stapelberg.ch/posts/2018-01-28-pristine-tar/\n"+
+			"and the \"Drop pristine-tar branches\" section at\n"+
+			"https://go-team.pages.debian.net/workflow-changes.html")
 
 	var pkgTypeString string
 	fs.StringVar(&pkgTypeString,
@@ -596,7 +608,9 @@ func execMake(args []string, usage func()) {
 	fs.StringVar(&wrapAndSort,
 		"wrap-and-sort",
 		"a",
-		"Set how the various multi-line fields in debian/control are formatted.\nValid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\nfor more information.")
+		"Set how the various multi-line fields in debian/control are formatted.\n"+
+			"Valid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\n"+
+			"for more information.")
 
 	err := fs.Parse(args)
 	if err != nil {

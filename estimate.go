@@ -178,7 +178,8 @@ func execEstimate(args []string) {
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s estimate <go-package-importpath>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-package-importpath> into Debian by printing all currently unpacked repositories\n")
+		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-package-importpath> into Debian\n"+
+			"by printing all currently unpacked repositories.\n")
 		fmt.Fprintf(os.Stderr, "Example: %s estimate github.com/Debian/dh-make-golang\n", os.Args[0])
 	}
 
