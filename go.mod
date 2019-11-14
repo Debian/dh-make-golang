@@ -3,8 +3,7 @@ module github.com/Debian/dh-make-golang
 go 1.12
 
 require (
-	github.com/google/go-github v17.0.0+incompatible
-	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/go-github/v28 v28.1.1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/mattn/go-isatty v0.0.10
 	github.com/russross/blackfriday v1.5.2
