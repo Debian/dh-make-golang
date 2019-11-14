@@ -661,6 +661,21 @@ func execMake(args []string, usage func()) {
 		log.Fatalf("-type=%q not recognized, aborting\n", pkgTypeString)
 	}
 
+	switch strings.TrimSpace(wrapAndSort) {
+	case "a":
+		// Current default, also what "cme fix dpkg" generates
+		wrapAndSort = "a"
+	case "at", "ta":
+		// -t, --trailing-comma, preferred by Martina Ferrari
+		// and currently used in quite a few packages
+		wrapAndSort = "at"
+	case "ast", "ats", "sat", "sta", "tas", "tsa":
+		// -s, --short-indent too, proposed by Guillem Jover
+		wrapAndSort = "ast"
+	default:
+		log.Fatalf("%q is not a valid value for -wrap-and-sort, aborting.", wrapAndSort)
+	}
+
 	if pkgType != typeGuess {
 		debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {

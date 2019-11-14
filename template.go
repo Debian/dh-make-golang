@@ -71,11 +71,11 @@ func fprintfControlField(f *os.File, field string, valueArray []string) {
 	case "a":
 		// Current default, also what "cme fix dpkg" generates
 		fmt.Fprintf(f, "%s: %s\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
-	case "at", "ta":
+	case "at":
 		// -t, --trailing-comma, preferred by Martina Ferrari
 		// and currently used in quite a few packages
 		fmt.Fprintf(f, "%s: %s,\n", field, strings.Join(valueArray, ",\n"+strings.Repeat(" ", len(field)+2)))
-	case "ast", "ats", "sat", "sta", "tas", "tsa":
+	case "ast":
 		// -s, --short-indent too, proposed by Guillem Jover
 		fmt.Fprintf(f, "%s:\n %s,\n", field, strings.Join(valueArray, ",\n "))
 	default:
@@ -203,21 +203,28 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string) error {
 		copyright = "TODO"
 	}
 
+	var indent = "  "
+	var linebreak = ""
+	if wrapAndSort == "ast" {
+		indent = " "
+		linebreak = "\n"
+	}
+
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Files-Excluded:\n")
 	for _, dir := range vendorDirs {
-		fmt.Fprintf(f, " %s\n", dir)
+		fmt.Fprintf(f, indent+"%s\n", dir)
 	}
-	fmt.Fprintf(f, " Godeps/_workspace\n")
+	fmt.Fprintf(f, indent+"Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files:\n *\n")
-	fmt.Fprintf(f, "Copyright:\n %s\n", copyright)
+	fmt.Fprintf(f, "Files:"+linebreak+" *\n")
+	fmt.Fprintf(f, "Copyright:"+linebreak+" %s\n", copyright)
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files:\n debian/*\n")
-	fmt.Fprintf(f, "Copyright:\n %s %s <%s>\n", time.Now().Format("2006"), getDebianName(), getDebianEmail())
+	fmt.Fprintf(f, "Files:"+linebreak+" debian/*\n")
+	fmt.Fprintf(f, "Copyright:"+linebreak+" %s %s <%s>\n", time.Now().Format("2006"), getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "Comment: Debian packaging is licensed under the same terms as upstream\n")
 	fmt.Fprintf(f, "\n")
