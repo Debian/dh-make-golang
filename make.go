@@ -289,7 +289,7 @@ func runGitCommandIn(dir string, arg ...string) error {
 	return cmd.Run()
 }
 
-func createGitRepository(debsrc, gopkg, orig string) (string, error) {
+func createGitRepository(debsrc, gopkg, orig string, dep14 bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -303,8 +303,10 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
-		return dir, err
+	if dep14 {
+		if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
+			return dir, err
+		}
 	}
 
 	if debianName := getDebianName(); debianName != "TODO" {
@@ -331,7 +333,12 @@ func createGitRepository(debsrc, gopkg, orig string) (string, error) {
 		return dir, err
 	}
 
-	cmd := exec.Command("gbp", "import-orig", "--debian-branch=debian/sid", "--no-interactive", filepath.Join(wd, orig))
+	var cmd *exec.Cmd
+	if dep14 {
+		cmd = exec.Command("gbp", "import-orig", "--debian-branch=debian/sid", "--no-interactive", filepath.Join(wd, orig))
+	} else {
+		cmd = exec.Command("gbp", "import-orig", "--no-interactive", filepath.Join(wd, orig))
+	}
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -745,7 +752,7 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig)
+	dir, err := createGitRepository(debsrc, gopkg, orig, dep14)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}

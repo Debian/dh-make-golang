@@ -270,6 +270,10 @@ func writeDebianSourceFormat(dir string) error {
 }
 
 func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
+	if !(dep14 || pristineTar) {
+		return nil
+	}
+
 	f, err := os.Create(filepath.Join(dir, "debian", "gbp.conf"))
 	if err != nil {
 		return err
