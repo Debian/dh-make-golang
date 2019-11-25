@@ -310,7 +310,7 @@ func createGitRepository(debsrc, gopkg, orig string, dep14, pristineTar bool) (s
 	}
 
 	if dep14 {
-		if err := runGitCommandIn(dir, "checkout", "-b", "debian/sid"); err != nil {
+		if err := runGitCommandIn(dir, "checkout", "-q", "-b", "debian/sid"); err != nil {
 			return dir, err
 		}
 	}
