@@ -12,7 +12,7 @@ import (
 
 func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	pkgType packageType, dependencies []string, vendorDirs []string,
-	dep14, pristineTar bool) error {
+	hasGodeps bool, dep14, pristineTar bool) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -26,7 +26,7 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	if err := writeDebianControl(dir, gopkg, debsrc, debLib, debProg, pkgType, dependencies); err != nil {
 		return err
 	}
-	if err := writeDebianCopyright(dir, gopkg, vendorDirs); err != nil {
+	if err := writeDebianCopyright(dir, gopkg, vendorDirs, hasGodeps); err != nil {
 		return err
 	}
 	if err := writeDebianRules(dir, pkgType); err != nil {
@@ -183,7 +183,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	return nil
 }
 
-func writeDebianCopyright(dir, gopkg string, vendorDirs []string) error {
+func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool) error {
 	license, fulltext, err := getLicenseForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine license for %q: %v\n", gopkg, err)
@@ -213,11 +213,15 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string) error {
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
-	fmt.Fprintf(f, "Files-Excluded:\n")
-	for _, dir := range vendorDirs {
-		fmt.Fprintf(f, indent+"%s\n", dir)
+	if len(vendorDirs) > 0 || hasGodeps {
+		fmt.Fprintf(f, "Files-Excluded:\n")
+		for _, dir := range vendorDirs {
+			fmt.Fprintf(f, indent+"%s\n", dir)
+		}
+		if hasGodeps {
+			fmt.Fprintf(f, indent+"Godeps/_workspace\n")
+		}
 	}
-	fmt.Fprintf(f, indent+"Godeps/_workspace\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Files:"+linebreak+" *\n")
 	fmt.Fprintf(f, "Copyright:"+linebreak+" %s\n", copyright)

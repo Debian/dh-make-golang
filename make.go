@@ -82,6 +82,7 @@ type upstream struct {
 	firstMain  string   // import path of the first main package within repo, if any
 	vendorDirs []string // all vendor sub directories, relative to the repo directory
 	repoDeps   []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
+	hasGodeps  bool     // whether the Godeps/_workspace directory exists
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
@@ -114,8 +115,8 @@ func (u *upstream) tar(gopath, repo string) error {
 		"cJf",
 		u.tarPath,
 		"--exclude=.git",
-		"--exclude=Godeps",
-		fmt.Sprintf("--exclude=%s/debian", base),
+		"--exclude=Godeps/_workspace",
+		"--exclude="+base+"/debian",
 		base)
 	cmd.Dir = filepath.Join(gopath, "src", dir)
 	cmd.Stderr = os.Stderr
@@ -256,6 +257,11 @@ func makeUpstreamSourceTarball(repo, revision string) (*upstream, error) {
 				return nil, err
 			}
 		}
+	}
+
+	if _, err := os.Stat(filepath.Join(repoDir, "Godeps", "_workspace")); !os.IsNotExist(err) {
+		log.Println("Godeps/_workspace detected")
+		u.hasGodeps = true
 	}
 
 	log.Printf("Determining upstream version number\n")
@@ -773,7 +779,7 @@ func execMake(args []string, usage func()) {
 	}
 
 	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion,
-		pkgType, debdependencies, u.vendorDirs,
+		pkgType, debdependencies, u.vendorDirs, u.hasGodeps,
 		dep14, pristineTar); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
