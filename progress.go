@@ -32,11 +32,12 @@ func humanizeBytes(b int64) string {
 }
 
 func progressSize(prefix, path string, done chan struct{}) {
-	// previous holds how many bytes the previous line contained, so that we
-	// can clear it in its entirety.
+	// previous holds how many bytes the previous line contained
+	// so that we can clear it in its entirety.
 	var previous int
+	tty := isatty.IsTerminal(os.Stdout.Fd())
 	for {
-		if isatty.IsTerminal(os.Stdout.Fd()) {
+		if tty {
 			var usage int64
 			filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 				if err == nil && info.Mode().IsRegular() {
