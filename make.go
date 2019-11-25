@@ -77,8 +77,8 @@ func findVendorDirs(dir string) ([]string, error) {
 
 // upstream describes the upstream repo we are about to package.
 type upstream struct {
-	tarPath    string   // path to the generated orig tarball
-	version    string   // Debian package version number, e.g. 0.0~git20180204.1d24609-1
+	tarPath    string   // path to the generated orig tarball tempfile
+	version    string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
 	firstMain  string   // import path of the first main package within repo, if any
 	vendorDirs []string // all vendor sub directories, relative to the repo directory
 	repoDeps   []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
