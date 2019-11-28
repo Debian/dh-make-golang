@@ -90,6 +90,7 @@ func addDescription(f *os.File, gopkg, comment string) {
 		description = "TODO: short description"
 	}
 	fmt.Fprintf(f, "Description: %s %s\n", description, comment)
+
 	longdescription, err := getLongDescriptionForGopkg(gopkg)
 	if err != nil {
 		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)

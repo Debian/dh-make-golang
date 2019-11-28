@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 
@@ -18,15 +17,13 @@ func reformatForControl(raw string) string {
 	return strings.Replace(raw, "\n", "\n ", -1)
 }
 
+// getDescriptionForGopkg reads from README.md (or equivalent) from GitHub,
+// intended for the extended description in debian/control.
 func getLongDescriptionForGopkg(gopkg string) (string, error) {
-	if !strings.HasPrefix(gopkg, "github.com/") {
-		return "", nil
+	owner, repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		return "", err
 	}
-	parts := strings.Split(strings.TrimPrefix(gopkg, "github.com/"), "/")
-	if got, want := len(parts), 2; got != want {
-		return "", fmt.Errorf("invalid GitHub repo: %q does not follow github.com/owner/repo", gopkg)
-	}
-	owner, repo := parts[0], parts[1]
 
 	rr, _, err := gitHub.Repositories.GetReadme(context.TODO(), owner, repo, nil)
 	if err != nil {

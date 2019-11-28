@@ -173,6 +173,8 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 	return ur.GetName(), copyright, nil
 }
 
+// getDescriptionForGopkg gets the package description from GitHub,
+// intended for the synopsis or the short description in debian/control.
 func getDescriptionForGopkg(gopkg string) (string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
