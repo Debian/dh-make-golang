@@ -869,8 +869,7 @@ func execMake(args []string, usage func()) {
 	}
 
 	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion,
-		pkgType, debdependencies, u.vendorDirs, u.hasGodeps,
-		dep14, pristineTar); err != nil {
+		pkgType, debdependencies, u, dep14, pristineTar); err != nil {
 		log.Fatalf("Could not create debian/ from templates: %v\n", err)
 	}
 

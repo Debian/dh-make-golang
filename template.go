@@ -11,8 +11,7 @@ import (
 )
 
 func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
-	pkgType packageType, dependencies []string, vendorDirs []string,
-	hasGodeps bool, dep14, pristineTar bool) error {
+	pkgType packageType, dependencies []string, u *upstream, dep14, pristineTar bool) error {
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -26,7 +25,7 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	if err := writeDebianControl(dir, gopkg, debsrc, debLib, debProg, pkgType, dependencies); err != nil {
 		return err
 	}
-	if err := writeDebianCopyright(dir, gopkg, vendorDirs, hasGodeps); err != nil {
+	if err := writeDebianCopyright(dir, gopkg, u.vendorDirs, u.hasGodeps); err != nil {
 		return err
 	}
 	if err := writeDebianRules(dir, pkgType); err != nil {
@@ -38,7 +37,7 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	if err := writeDebianGbpConf(dir, dep14, pristineTar); err != nil {
 		return err
 	}
-	if err := writeDebianWatch(dir, gopkg, debsrc); err != nil {
+	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease); err != nil {
 		return err
 	}
 	if err := writeDebianPackageInstall(dir, debLib, debProg, pkgType); err != nil {
@@ -296,19 +295,48 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 	return nil
 }
 
-func writeDebianWatch(dir, gopkg, debsrc string) error {
-	if strings.HasPrefix(gopkg, "github.com/") {
-		f, err := os.Create(filepath.Join(dir, "debian", "watch"))
-		if err != nil {
-			return err
-		}
-		defer f.Close()
+func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool) error {
+	// TODO: Support other hosters too
+	host := "github.com"
 
-		fmt.Fprintf(f, "version=4\n")
-		fmt.Fprintf(f, `opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/,\`+"\n", debsrc)
-		fmt.Fprintf(f, `uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/ \`+"\n")
-		fmt.Fprintf(f, `  https://%s/tags .*/v?(\d\S*)\.tar\.gz`+"\n", gopkg)
+	owner, repo, err := findGitHubRepo(gopkg)
+	if err != nil {
+		log.Printf("debian/watch: Unable to resolve %s to github.com, skipping\n", gopkg)
+		return nil
 	}
+	if !strings.HasPrefix(gopkg, "github.com/") {
+		log.Printf("debian/watch: %s resolves to %s/%s/%s\n", gopkg, host, owner, repo)
+	}
+
+	f, err := os.Create(filepath.Join(dir, "debian", "watch"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if hasRelease {
+		log.Printf("Setting debian/watch to track release tarball")
+		fmt.Fprintf(f, "version=4\n")
+		fmt.Fprintf(f, `opts="filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/, \`+"\n", debsrc)
+		fmt.Fprintf(f, `      uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/" \`+"\n")
+		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
+	} else {
+		log.Printf("Setting debian/watch to track git HEAD")
+		fmt.Fprintf(f, "version=4\n")
+		fmt.Fprintf(f, `opts="mode=git, pgpmode=none" \`+"\n")
+		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
+		fmt.Fprintf(f, "  HEAD debian\n")
+
+		// Anticipate that upstream would eventually switch to tagged releases
+		fmt.Fprintf(f, "\n")
+		fmt.Fprintf(f, "# Use the following when upstream starts to tag releases:\n")
+		fmt.Fprintf(f, "#\n")
+		fmt.Fprintf(f, "#version=4\n")
+		fmt.Fprintf(f, `#opts="filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/, \`+"\n", debsrc)
+		fmt.Fprintf(f, `#      uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/" \`+"\n")
+		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
+	}
+
 	return nil
 }
 
