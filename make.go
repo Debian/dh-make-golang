@@ -431,6 +431,8 @@ func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) s
 		host = "golang"
 	case "google.golang.org":
 		host = "google"
+	case "gitlab.com":
+		host = "gitlab"
 	case "bitbucket.org":
 		host = "bitbucket"
 	case "bazil.org":
