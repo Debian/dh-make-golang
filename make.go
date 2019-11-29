@@ -830,4 +830,5 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("Once you are happy with your packaging, push it to salsa using:\n")
 	fmt.Printf("    git remote set-url origin git@salsa.debian.org:go-team/packages/%s.git\n", debsrc)
 	fmt.Printf("    gbp push\n")
+	fmt.Printf("\n")
 }
