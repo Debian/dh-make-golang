@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -73,6 +74,30 @@ func findVendorDirs(dir string) ([]string, error) {
 		return nil
 	})
 	return vendorDirs, err
+}
+
+func downloadFile(filename, url string) error {
+	dst, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf(resp.Status)
+	}
+
+	_, err = io.Copy(dst, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // upstream describes the upstream repo we are about to package.
