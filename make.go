@@ -166,7 +166,24 @@ func (u *upstream) tar(gopath, repo string) error {
 	}
 	u.tarPath = f.Name()
 	f.Close()
+
+	if u.isRelease {
+		if u.hasGodeps {
+			log.Printf("Godeps/_workspace exists, not downloading tarball from hoster.")
+		} else {
+			u.compression = "gz"
+			err := u.tarballFromHoster(repo)
+			if err != nil && err.Error() == "Unsupported hoster" {
+				log.Printf("INFO: Hoster does not provide release tarball\n")
+			} else {
+				return err
+			}
+		}
+	}
+
+	u.compression = "xz"
 	base := filepath.Base(repo)
+	log.Printf("Generating temp tarball as %q\n", u.tarPath)
 	dir := filepath.Dir(repo)
 	cmd := exec.Command(
 		"tar",
@@ -818,7 +835,8 @@ func execMake(args []string, usage func()) {
 			debbin, debbin)
 	}
 
-	orig := fmt.Sprintf("%s_%s.orig.tar.xz", debsrc, u.version)
+	orig := fmt.Sprintf("%s_%s.orig.tar.%s", debsrc, u.version, u.compression)
+	log.Printf("Moving tempfile to %q\n", orig)
 	// We need to copy the file, merely renaming is not enough since the file
 	// might be on a different filesystem (/tmp often is a tmpfs).
 	if err := copyFile(u.tarPath, orig); err != nil {
