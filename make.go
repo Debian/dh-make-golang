@@ -437,6 +437,8 @@ func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) s
 		host = "bitbucket"
 	case "bazil.org":
 		host = "bazil"
+	case "blitiri.com.ar":
+		host = "blitiri"
 	case "pault.ag":
 		host = "pault"
 	case "howett.net":
