@@ -102,12 +102,13 @@ func downloadFile(filename, url string) error {
 
 // upstream describes the upstream repo we are about to package.
 type upstream struct {
-	tarPath    string   // path to the generated orig tarball tempfile
-	version    string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
-	firstMain  string   // import path of the first main package within repo, if any
-	vendorDirs []string // all vendor sub directories, relative to the repo directory
-	repoDeps   []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
-	hasGodeps  bool     // whether the Godeps/_workspace directory exists
+	tarPath     string   // path to the downloaded or generated orig tarball tempfile
+	compression string   // compression method, either "gz" or "xz"
+	version     string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
+	firstMain   string   // import path of the first main package within repo, if any
+	vendorDirs  []string // all vendor sub directories, relative to the repo directory
+	repoDeps    []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
+	hasGodeps   bool     // whether the Godeps/_workspace directory exists
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
@@ -124,6 +125,36 @@ func (u *upstream) get(gopath, repo, rev string) error {
 		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
 	}
 	return rr.VCS.Create(dir, rr.Repo)
+}
+
+func (u *upstream) tarballFromHoster(repo string) error {
+	var url string
+	parts := strings.Split(repo, "/")
+	if len(parts) < 3 {
+		return fmt.Errorf("Unsupported hoster")
+	}
+	host, owner, project := parts[0], parts[1], parts[2]
+
+	switch host {
+	case "github.com":
+		url = fmt.Sprintf("https://%s/%s/%s/archive/v%s.tar.%s",
+			host, owner, project, u.version, u.compression)
+	case "gitlab.com":
+		url = fmt.Sprintf("https://%s/%s/%s/-/archive/v%s/%s-%s.tar.%s",
+			host, owner, project, u.version, project, u.version, u.compression)
+	default:
+		return fmt.Errorf("Unsupported hoster")
+	}
+
+	done := make(chan struct{})
+	go progressSize("Download", u.tarPath, done)
+
+	log.Printf("Downloading %s", url)
+	err := downloadFile(u.tarPath, url)
+
+	close(done)
+
+	return err
 }
 
 func (u *upstream) tar(gopath, repo string) error {
