@@ -109,6 +109,8 @@ type upstream struct {
 	vendorDirs  []string // all vendor sub directories, relative to the repo directory
 	repoDeps    []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
 	hasGodeps   bool     // whether the Godeps/_workspace directory exists
+	hasRelease  bool     // whether any release tags exist, for debian/watch
+	isRelease   bool     // whether we are packaging a tagged version or not
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
@@ -278,7 +280,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	return nil
 }
 
-func makeUpstreamSourceTarball(repo, revision string) (*upstream, error) {
+func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*upstream, error) {
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
 		return nil, err
@@ -322,7 +324,7 @@ func makeUpstreamSourceTarball(repo, revision string) (*upstream, error) {
 
 	log.Printf("Determining upstream version number\n")
 
-	u.version, err = pkgVersionFromGit(repoDir)
+	u.version, u.hasRelease, u.isRelease, err = pkgVersionFromGit(repoDir, forcePrerelease)
 	if err != nil {
 		return nil, err
 	}
@@ -671,6 +673,12 @@ func execMake(args []string, usage func()) {
 			"and the \"Drop pristine-tar branches\" section at\n"+
 			"https://go-team.pages.debian.net/workflow-changes.html")
 
+	var forcePrerelease bool
+	fs.BoolVar(&forcePrerelease,
+		"force-prerelease",
+		false,
+		"Package @master or @tip instead of the latest tagged version")
+
 	var pkgTypeString string
 	fs.StringVar(&pkgTypeString,
 		"type",
@@ -781,7 +789,8 @@ func execMake(args []string, usage func()) {
 		golangBinaries, err = getGolangBinaries()
 		return err
 	})
-	u, err := makeUpstreamSourceTarball(gopkg, gitRevision)
+
+	u, err := makeUpstreamSourceTarball(gopkg, gitRevision, forcePrerelease)
 	if err != nil {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}

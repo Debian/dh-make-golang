@@ -42,7 +42,7 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Fatalf("Could not run %v: %v", cmd.Args, err)
 	}
 
-	got, err := pkgVersionFromGit(tempdir)
+	got, _, _, err := pkgVersionFromGit(tempdir, false)
 	if err != nil {
 		t.Fatalf("Determining package version from git failed: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestSnapshotVersion(t *testing.T) {
 
 	gitCmdOrFatal(t, tempdir, "tag", "-a", "v1", "-m", "release v1")
 
-	got, err = pkgVersionFromGit(tempdir)
+	got, _, _, err = pkgVersionFromGit(tempdir, false)
 	if err != nil {
 		t.Fatalf("Determining package version from git failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Fatalf("Could not run %v: %v", cmd.Args, err)
 	}
 
-	got, err = pkgVersionFromGit(tempdir)
+	got, _, _, err = pkgVersionFromGit(tempdir, false)
 	if err != nil {
 		t.Fatalf("Determining package version from git failed: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Fatalf("Could not run %v: %v", cmd.Args, err)
 	}
 
-	got, err = pkgVersionFromGit(tempdir)
+	got, _, _, err = pkgVersionFromGit(tempdir, false)
 	if err != nil {
 		t.Fatalf("Determining package version from git failed: %v", err)
 	}

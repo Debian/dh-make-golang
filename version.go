@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -13,39 +14,79 @@ import (
 var (
 	// describeRegexp parses the count and revision part of the “git describe --long” output.
 	describeRegexp = regexp.MustCompile(`-\d+-g([0-9a-f]+)\s*$`)
+
+	// semverRegexp checks if a string is a valid Go semver,
+	// from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+	// with leading "v" added.
+	semverRegexp = regexp.MustCompile(`^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
 )
 
 // TODO: also support other VCS
-func pkgVersionFromGit(gitdir string) (string, error) {
-	cmd := exec.Command("git", "describe", "--exact-match", "--tags")
+func pkgVersionFromGit(gitdir string, forcePrerelease bool) (version string, hasRelease, isRelease bool, err error) {
+	var latestTag string
+	var commitsAhead int
+
+	// Find @latest version tag (whether annotated or not)
+	cmd := exec.Command("git", "describe", "--abbrev=0", "--tags")
 	cmd.Dir = gitdir
-	if tag, err := cmd.Output(); err == nil {
-		version := strings.TrimSpace(string(tag))
-		if strings.HasPrefix(version, "v") {
-			version = version[1:]
+	if out, err := cmd.Output(); err == nil {
+		latestTag = strings.TrimSpace(string(out))
+		hasRelease = true
+		log.Printf("Found latest tag %q", latestTag)
+
+		if !semverRegexp.MatchString(latestTag) {
+			log.Printf("WARNING: Latest tag %q is not a valid SemVer version\n", latestTag)
+			// TODO: Enforce strict sementic versioning with leading "v"?
 		}
-		return version, nil
+
+		// Count number of commits since @latest version
+		cmd = exec.Command("git", "rev-list", "--count", latestTag+"..HEAD")
+		cmd.Dir = gitdir
+		out, err := cmd.Output()
+		if err != nil {
+			return "", true, false, err
+		}
+		commitsAhead, err = strconv.Atoi(strings.TrimSpace(string(out)))
+		if err != nil {
+			return "", true, false, err
+		}
+
+		if commitsAhead == 0 {
+			// Equivalent to "git describe --exact-match --tags"
+			log.Printf("Latest tag %q matches master", latestTag)
+		} else {
+			log.Printf("INFO: master is ahead of %q by %v commits", latestTag, commitsAhead)
+		}
+
+		version = strings.TrimPrefix(latestTag, "v")
+		isRelease = true
+
+		if forcePrerelease {
+			log.Printf("INFO: Force packaging master (prerelease) as requested by user")
+		} else {
+			return version, hasRelease, isRelease, nil
+		}
 	}
 
+	// Packaging @master (prerelease)
+
+	// 1.0~rc1 < 1.0 < 1.0+b1, as per
+	// https://www.debian.org/doc/manuals/maint-guide/first.en.html#namever
+	mainVer := "0.0~"
+	if hasRelease {
+		mainVer = version + "+"
+	}
+
+	// Find committer date, UNIX timestamp
 	cmd = exec.Command("git", "log", "--pretty=format:%ct", "-n1")
 	cmd.Dir = gitdir
 	lastCommitUnixBytes, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", hasRelease, isRelease, err
 	}
 	lastCommitUnix, err := strconv.ParseInt(strings.TrimSpace(string(lastCommitUnixBytes)), 0, 64)
 	if err != nil {
-		return "", err
-	}
-
-	// Find the most recent tag (whether annotated or not)
-	cmd = exec.Command("git", "describe", "--abbrev=0", "--tags")
-	cmd.Dir = gitdir
-	// 1.0~rc1 < 1.0 < 1.0+b1, as per
-	// https://www.debian.org/doc/manuals/maint-guide/first.en.html#namever
-	lastTag := "0.0~"
-	if lastTagBytes, err := cmd.Output(); err == nil {
-		lastTag = strings.TrimPrefix(strings.TrimSpace(string(lastTagBytes)), "v") + "+"
+		return "", hasRelease, isRelease, err
 	}
 
 	// This results in an output like 4.10.2-232-g9f107c8
@@ -60,19 +101,19 @@ func pkgVersionFromGit(gitdir string) (string, error) {
 		cmd.Stderr = os.Stderr
 		revparseBytes, err := cmd.Output()
 		if err != nil {
-			return "", err
+			return "", hasRelease, isRelease, err
 		}
 		lastCommitSha = strings.TrimSpace(string(revparseBytes))
 	} else {
 		submatches := describeRegexp.FindSubmatch(describeBytes)
 		if submatches == nil {
-			return "", fmt.Errorf("git describe output %q does not match expected format", string(describeBytes))
+			return "", hasRelease, isRelease, fmt.Errorf("git describe output %q does not match expected format", string(describeBytes))
 		}
 		lastCommitSha = string(submatches[1])
 	}
-	version := fmt.Sprintf("%sgit%s.%s",
-		lastTag,
+	version = fmt.Sprintf("%sgit%s.%s",
+		mainVer,
 		time.Unix(lastCommitUnix, 0).UTC().Format("20060102"),
 		lastCommitSha)
-	return version, nil
+	return version, hasRelease, isRelease, nil
 }
