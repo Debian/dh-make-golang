@@ -105,12 +105,13 @@ type upstream struct {
 	tarPath     string   // path to the downloaded or generated orig tarball tempfile
 	compression string   // compression method, either "gz" or "xz"
 	version     string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
+	commitIsh   string   // commit-ish corresponding to upstream version to be packaged
 	firstMain   string   // import path of the first main package within repo, if any
 	vendorDirs  []string // all vendor sub directories, relative to the repo directory
 	repoDeps    []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
 	hasGodeps   bool     // whether the Godeps/_workspace directory exists
 	hasRelease  bool     // whether any release tags exist, for debian/watch
-	isRelease   bool     // whether we are packaging a tagged version or not
+	isRelease   bool     // whether what we end up packaging is a tagged release
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
@@ -341,7 +342,7 @@ func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*up
 
 	log.Printf("Determining upstream version number\n")
 
-	u.version, u.hasRelease, u.isRelease, err = pkgVersionFromGit(repoDir, forcePrerelease)
+	u.version, err = pkgVersionFromGit(repoDir, &u, forcePrerelease)
 	if err != nil {
 		return nil, err
 	}
