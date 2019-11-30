@@ -485,16 +485,11 @@ func normalizeDebianProgramName(str string) string {
 	return safe
 }
 
-// This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
-func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) string {
+func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err error) {
 	parts := strings.Split(gopkg, "/")
+	fqdn := parts[0]
 
-	if t == typeProgram || t == typeProgramLibrary {
-		return normalizeDebianProgramName(parts[len(parts)-1])
-	}
-
-	host := parts[0]
-	switch host {
+	switch fqdn {
 	case "github.com":
 		host = "github"
 	case "code.google.com":
@@ -527,12 +522,30 @@ func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) s
 		if allowUnknownHoster {
 			suffix, _ := publicsuffix.PublicSuffix(host)
 			host = host[:len(host)-len(suffix)-len(".")]
-			log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, parts[0], os.Args[0])
+			log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, fqdn, os.Args[0])
 		} else {
-			log.Fatalf("Cannot derive Debian package name: unknown hoster %q. See -help output for -allow_unknown_hoster\n", host)
+			err = fmt.Errorf("unknown hoster %q", fqdn)
 		}
 	}
+	return host, err
+}
+
+// debianNameFromGopkg converts a Go package repo path to a Debian package name,
+// e.g. "golang.org/x/text" → "golang-golang-x-text".
+// This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
+func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) string {
+	parts := strings.Split(gopkg, "/")
+
+	if t == typeProgram || t == typeProgramLibrary {
+		return normalizeDebianProgramName(parts[len(parts)-1])
+	}
+
+	host, err := shortHostName(gopkg, allowUnknownHoster)
+	if err != nil {
+		log.Fatalf("Cannot derive Debian package name: %v. See -help output for -allow_unknown_hoster\n", err)
+	}
 	parts[0] = host
+
 	return strings.Trim("golang-"+strings.ToLower(strings.Replace(strings.Join(parts, "-"), "_", "-", -1)), "-")
 }
 
