@@ -102,10 +102,12 @@ func downloadFile(filename, url string) error {
 
 // upstream describes the upstream repo we are about to package.
 type upstream struct {
+	rr          *vcs.RepoRoot
 	tarPath     string   // path to the downloaded or generated orig tarball tempfile
 	compression string   // compression method, either "gz" or "xz"
 	version     string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
 	commitIsh   string   // commit-ish corresponding to upstream version to be packaged
+	remote      string   // git remote, set to short hostname if upstream git history is included
 	firstMain   string   // import path of the first main package within repo, if any
 	vendorDirs  []string // all vendor sub directories, relative to the repo directory
 	repoDeps    []string // the repository paths of all dependencies (e.g. github.com/zyedidia/glob)
@@ -123,6 +125,7 @@ func (u *upstream) get(gopath, repo, rev string) error {
 	if err != nil {
 		return err
 	}
+	u.rr = rr
 	dir := filepath.Join(gopath, "src", rr.Root)
 	if rev != "" {
 		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
@@ -371,7 +374,8 @@ func runGitCommandIn(dir string, arg ...string) error {
 	return cmd.Run()
 }
 
-func createGitRepository(debsrc, gopkg, orig string, dep14, pristineTar bool) (string, error) {
+func createGitRepository(debsrc, gopkg, orig string, u *upstream,
+	includeUpstreamHistory, allowUnknownHoster, dep14, pristineTar bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -413,6 +417,21 @@ func createGitRepository(debsrc, gopkg, orig string, dep14, pristineTar bool) (s
 		return dir, err
 	}
 
+	if includeUpstreamHistory {
+		u.remote, err = shortHostName(gopkg, allowUnknownHoster)
+		if err != nil {
+			return dir, fmt.Errorf("Unable to fetch upstream history: %q", err)
+		}
+		log.Printf("Adding %q as remote %q\n", u.rr.Repo, u.remote)
+		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
+			return dir, err
+		}
+		log.Printf("Running \"git fetch %s\"\n", u.remote)
+		if err := runGitCommandIn(dir, "fetch", u.remote); err != nil {
+			return dir, err
+		}
+	}
+
 	// Import upstream orig tarball
 
 	arg := []string{"import-orig", "--no-interactive"}
@@ -421,6 +440,9 @@ func createGitRepository(debsrc, gopkg, orig string, dep14, pristineTar bool) (s
 	}
 	if pristineTar {
 		arg = append(arg, "--pristine-tar")
+	}
+	if includeUpstreamHistory {
+		arg = append(arg, "--upstream-vcs-tag="+u.commitIsh)
 	}
 	arg = append(arg, filepath.Join(wd, orig))
 	cmd := exec.Command("gbp", arg...)
@@ -530,7 +552,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 	return host, err
 }
 
-// debianNameFromGopkg converts a Go package repo path to a Debian package name,
+// debianNameFromGopkg maps a Go package repo path to a Debian package name,
 // e.g. "golang.org/x/text" → "golang-golang-x-text".
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
 func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) string {
@@ -720,6 +742,13 @@ func execMake(args []string, usage func()) {
 			` * "library+program" (aliases: "lib+prog", "l+p", "both")`+"\n"+
 			` * "program+library" (aliases: "prog+lib", "p+l", "combined")`)
 
+	var includeUpstreamHistory bool
+	fs.BoolVar(&includeUpstreamHistory,
+		"upstream-git-history",
+		true,
+		"Include upstream git history (Debian pkg-go team new workflow).\n"+
+			"New in dh-make-golang 0.3.0, currently experimental.")
+
 	fs.StringVar(&wrapAndSort,
 		"wrap-and-sort",
 		"a",
@@ -862,7 +891,7 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig, dep14, pristineTar)
+	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, dep14, pristineTar)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
@@ -927,4 +956,18 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("    git remote set-url origin git@salsa.debian.org:go-team/packages/%s.git\n", debsrc)
 	fmt.Printf("    gbp push\n")
 	fmt.Printf("\n")
+
+	if includeUpstreamHistory {
+		fmt.Printf("NOTE: Full upstream git history has been included as per pkg-go team's\n")
+		fmt.Printf("      new workflow.  This feature is new and somewhat experimental,\n")
+		fmt.Printf("      and all feedback are welcome!\n")
+		fmt.Printf("      (For old behavior, use --include-upstream-history=false)\n")
+		fmt.Printf("\n")
+		fmt.Printf("The upstream git history is being tracked with the remote named %q.\n", u.remote)
+		fmt.Printf("To upgrade to the latest upstream version, you may use something like:\n")
+		fmt.Printf("    git fetch %-15v # note the latest tag or commit-ish\n", u.remote)
+		fmt.Printf("    uscan --report-status     # check we get the same tag or commit-ish\n")
+		fmt.Printf("    gbp import-orig --sign-tags --uscan --upstream-vcs-tag=<commit-ish>\n")
+		fmt.Printf("\n")
+	}
 }
