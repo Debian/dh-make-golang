@@ -43,6 +43,9 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	if err := writeDebianPackageInstall(dir, debLib, debProg, pkgType); err != nil {
 		return err
 	}
+	if err := writeDebianGitLabCI(dir); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -356,5 +359,46 @@ func writeDebianPackageInstall(dir, debLib, debProg string, pkgType packageType)
 		defer f.Close()
 		fmt.Fprintf(f, "usr/share\n")
 	}
+	return nil
+}
+
+func writeDebianGitLabCI(dir string) error {
+	const gitlabciymlTmpl = `# auto-generated, DO NOT MODIFY.
+# The authoritative copy of this file lives at:
+# https://salsa.debian.org/go-team/ci/blob/master/config/gitlabciyml.go
+
+# TODO: publish under debian-go-team/ci
+image: stapelberg/ci2
+
+test_the_archive:
+  artifacts:
+    paths:
+    - before-applying-commit.json
+    - after-applying-commit.json
+  script:
+    # Create an overlay to discard writes to /srv/gopath/src after the build:
+    - "rm -rf /cache/overlay/{upper,work}"
+    - "mkdir -p /cache/overlay/{upper,work}"
+    - "mount -t overlay overlay -o lowerdir=/srv/gopath/src,upperdir=/cache/overlay/upper,workdir=/cache/overlay/work /srv/gopath/src"
+    - "export GOPATH=/srv/gopath"
+    - "export GOCACHE=/cache/go"
+    # Build the world as-is:
+    - "ci-build -exemptions=/var/lib/ci-build/exemptions.json > before-applying-commit.json"
+    # Copy this package into the overlay:
+    - "GBP_CONF_FILES=:debian/gbp.conf gbp buildpackage --git-no-pristine-tar --git-ignore-branch --git-ignore-new --git-export-dir=/tmp/export --git-no-overlay --git-tarball-dir=/nonexistant --git-cleaner=/bin/true --git-builder='dpkg-buildpackage -S -d --no-sign'"
+    - "pgt-gopath -dsc /tmp/export/*.dsc"
+    # Rebuild the world:
+    - "ci-build -exemptions=/var/lib/ci-build/exemptions.json > after-applying-commit.json"
+    - "ci-diff before-applying-commit.json after-applying-commit.json"
+`
+
+	f, err := os.Create(filepath.Join(dir, "debian", "gitlab-ci.yml"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, gitlabciymlTmpl)
+
 	return nil
 }
