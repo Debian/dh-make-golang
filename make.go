@@ -410,6 +410,12 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	if err := runGitCommandIn(dir, "config", "push.default", "matching"); err != nil {
 		return dir, err
 	}
+
+	originURL := "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
+	log.Printf("Adding remote \"origin\" with URL %q\n", originURL)
+	if err := runGitCommandIn(dir, "remote", "add", "origin", originURL); err != nil {
+		return dir, err
+	}
 	if err := runGitCommandIn(dir, "config", "--add", "remote.origin.push", "+refs/heads/*:refs/heads/*"); err != nil {
 		return dir, err
 	}
@@ -422,7 +428,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		if err != nil {
 			return dir, fmt.Errorf("Unable to fetch upstream history: %q", err)
 		}
-		log.Printf("Adding %q as remote %q\n", u.rr.Repo, u.remote)
+		log.Printf("Adding remote %q with URL %q\n", u.remote, u.rr.Repo)
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
 			return dir, err
 		}
@@ -953,7 +959,6 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("    dh-make-golang create-salsa-project %s\n", debsrc)
 	fmt.Printf("\n")
 	fmt.Printf("Once you are happy with your packaging, push it to salsa using:\n")
-	fmt.Printf("    git remote set-url origin git@salsa.debian.org:go-team/packages/%s.git\n", debsrc)
 	fmt.Printf("    gbp push\n")
 	fmt.Printf("\n")
 
