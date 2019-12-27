@@ -549,7 +549,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 	default:
 		if allowUnknownHoster {
 			suffix, _ := publicsuffix.PublicSuffix(host)
-			host = host[:len(host)-len(suffix)-len(".")]
+			host = fqdn[:len(fqdn)-len(suffix)-len(".")]
 			log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, fqdn, os.Args[0])
 		} else {
 			err = fmt.Errorf("unknown hoster %q", fqdn)
