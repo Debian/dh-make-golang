@@ -411,6 +411,8 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		return dir, err
 	}
 
+	// [remote "origin"]
+
 	originURL := "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
 	log.Printf("Adding remote \"origin\" with URL %q\n", originURL)
 	if err := runGitCommandIn(dir, "remote", "add", "origin", originURL); err != nil {
@@ -421,6 +423,27 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 	if err := runGitCommandIn(dir, "config", "--add", "remote.origin.push", "+refs/tags/*:refs/tags/*"); err != nil {
 		return dir, err
+	}
+
+	// Preconfigure branches
+
+	var debianBranch string
+	if dep14 {
+		debianBranch = "debian/sid"
+	} else {
+		debianBranch = "master"
+	}
+	branches := []string{debianBranch, "upstream"}
+	if pristineTar {
+		branches = append(branches, "pristine-tar")
+	}
+	for _, branch := range branches {
+		if err := runGitCommandIn(dir, "config", "branch."+branch+".remote", "origin"); err != nil {
+			return dir, err
+		}
+		if err := runGitCommandIn(dir, "config", "branch."+branch+".merge", "refs/heads/"+branch); err != nil {
+			return dir, err
+		}
 	}
 
 	if includeUpstreamHistory {
