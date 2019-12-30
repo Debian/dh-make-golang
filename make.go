@@ -969,7 +969,7 @@ func execMake(args []string, usage func()) {
 	}
 	fmt.Printf("\n")
 	fmt.Printf("Resolve all TODOs in %s, then email it out:\n", itpname)
-	fmt.Printf("    sendmail -t < %s\n", itpname)
+	fmt.Printf("    /usr/sbin/sendmail -t < %s\n", itpname)
 	fmt.Printf("\n")
 	fmt.Printf("Resolve all the TODOs in debian/, find them using:\n")
 	fmt.Printf("    grep -r TODO debian\n")
