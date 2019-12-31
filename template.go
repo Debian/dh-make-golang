@@ -104,10 +104,10 @@ func addDescription(f *os.File, gopkg, comment string) {
 func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debLib)
-	deps := []string{"${misc:Depends}"}
 	fmt.Fprintf(f, "Architecture: all\n")
-	deps = append(deps, dependencies...)
+	deps := dependencies
 	sort.Strings(deps)
+	deps = append(deps, "${misc:Depends}")
 	fprintfControlField(f, "Depends", deps)
 	addDescription(f, gopkg, "(library)")
 }
@@ -115,10 +115,10 @@ func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) 
 func addProgramPackage(f *os.File, gopkg, debProg string, dependencies []string) {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debProg)
-	deps := []string{"${misc:Depends}"}
 	fmt.Fprintf(f, "Architecture: any\n")
-	deps = append(deps, "${shlibs:Depends}")
+	deps := dependencies
 	sort.Strings(deps)
+	deps = append(deps, "${misc:Depends}", "${shlibs:Depends}")
 	fprintfControlField(f, "Depends", deps)
 	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	addDescription(f, gopkg, "(program)")
