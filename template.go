@@ -105,9 +105,9 @@ func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debLib)
 	fmt.Fprintf(f, "Architecture: all\n")
-	deps := []string{"${misc:Depends}"}
-	deps = append(deps, dependencies...)
+	deps := append([]string(nil), dependencies...)
 	sort.Strings(deps)
+	deps = append(deps, "${misc:Depends}")
 	fprintfControlField(f, "Depends", deps)
 	addDescription(f, gopkg, "(library)")
 }
