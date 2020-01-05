@@ -537,48 +537,35 @@ func normalizeDebianProgramName(str string) string {
 }
 
 func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err error) {
+
+	knownHosts := map[string]string{
+		"github.com":        "github",
+		"code.google.com":   "googlecode",
+		"cloud.google.com":  "googlecloud",
+		"gopkg.in":          "gopkg",
+		"golang.org":        "golang",
+		"google.golang.org": "google",
+		"gitlab.com":        "gitlab",
+		"bitbucket.org":     "bitbucket",
+		"bazil.org":         "bazil",
+		"blitiri.com.ar":    "blitiri",
+		"pault.ag":          "pault",
+		"howett.net":        "howett",
+		"go4.org":           "go4",
+		"salsa.debian.org":  "debian",
+	}
 	parts := strings.Split(gopkg, "/")
 	fqdn := parts[0]
-
-	switch fqdn {
-	case "github.com":
-		host = "github"
-	case "code.google.com":
-		host = "googlecode"
-	case "cloud.google.com":
-		host = "googlecloud"
-	case "gopkg.in":
-		host = "gopkg"
-	case "golang.org":
-		host = "golang"
-	case "google.golang.org":
-		host = "google"
-	case "gitlab.com":
-		host = "gitlab"
-	case "bitbucket.org":
-		host = "bitbucket"
-	case "bazil.org":
-		host = "bazil"
-	case "blitiri.com.ar":
-		host = "blitiri"
-	case "pault.ag":
-		host = "pault"
-	case "howett.net":
-		host = "howett"
-	case "go4.org":
-		host = "go4"
-	case "salsa.debian.org":
-		host = "debian"
-	default:
-		if allowUnknownHoster {
-			suffix, _ := publicsuffix.PublicSuffix(host)
-			host = fqdn[:len(fqdn)-len(suffix)-len(".")]
-			log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, fqdn, os.Args[0])
-		} else {
-			err = fmt.Errorf("unknown hoster %q", fqdn)
-		}
+	if host, ok := knownHosts[fqdn]; ok {
+		return host, nil
 	}
-	return host, err
+	if !allowUnknownHoster {
+		return "", fmt.Errorf("unknown hoster %q", fqdn)
+	}
+	suffix, _ := publicsuffix.PublicSuffix(fqdn)
+	host = fqdn[:len(fqdn)-len(suffix)-len(".")]
+	log.Printf("WARNING: Using %q as canonical hostname for %q. If that is not okay, please file a bug against %s.\n", host, fqdn, os.Args[0])
+	return host, nil
 }
 
 // debianNameFromGopkg maps a Go package repo path to a Debian package name,
