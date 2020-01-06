@@ -32,7 +32,7 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 	var commitsAhead int
 
 	// Find @latest version tag (whether annotated or not)
-	cmd := exec.Command("git", "describe", "--abbrev=0", "--tags")
+	cmd := exec.Command("git", "describe", "--abbrev=0", "--tags", "--exclude", "*/v*")
 	cmd.Dir = gitdir
 	if out, err := cmd.Output(); err == nil {
 		latestTag = strings.TrimSpace(string(out))
