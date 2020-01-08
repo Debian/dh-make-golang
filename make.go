@@ -537,22 +537,24 @@ func normalizeDebianProgramName(str string) string {
 }
 
 func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err error) {
-
 	knownHosts := map[string]string{
-		"github.com":        "github",
-		"code.google.com":   "googlecode",
+		// keep the list in alphabetical order
+		"bazil.org":         "bazil",
+		"bitbucket.org":     "bitbucket",
+		"blitiri.com.ar":    "blitiri",
 		"cloud.google.com":  "googlecloud",
-		"gopkg.in":          "gopkg",
+		"code.google.com":   "googlecode",
+		"github.com":        "github",
+		"gitlab.com":        "gitlab",
+		"go4.org":           "go4",
 		"golang.org":        "golang",
 		"google.golang.org": "google",
-		"gitlab.com":        "gitlab",
-		"bitbucket.org":     "bitbucket",
-		"bazil.org":         "bazil",
-		"blitiri.com.ar":    "blitiri",
-		"pault.ag":          "pault",
+		"gopkg.in":          "gopkg",
 		"howett.net":        "howett",
-		"go4.org":           "go4",
+		"k8s.io":            "k8s",
+		"pault.ag":          "pault",
 		"salsa.debian.org":  "debian",
+		"sigs.k8s.io":       "k8s-sigs",
 	}
 	parts := strings.Split(gopkg, "/")
 	fqdn := parts[0]
