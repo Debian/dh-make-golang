@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/user"
@@ -133,21 +134,23 @@ func (u *upstream) get(gopath, repo, rev string) error {
 	return rr.VCS.Create(dir, rr.Repo)
 }
 
-func (u *upstream) tarballFromHoster(repo string) error {
-	var url string
-	parts := strings.Split(repo, "/")
-	if len(parts) < 3 {
-		return fmt.Errorf("Unsupported hoster")
-	}
-	host, owner, project := parts[0], parts[1], parts[2]
+func (u *upstream) tarballFromHoster() error {
+	var tarURL string
+	repo := strings.TrimSuffix(u.rr.Repo, ".git")
+	repoU, err := url.Parse(repo)
 
-	switch host {
+	switch repoU.Host {
 	case "github.com":
-		url = fmt.Sprintf("https://%s/%s/%s/archive/v%s.tar.%s",
-			host, owner, project, u.version, u.compression)
+		tarURL = fmt.Sprintf("%s/archive/v%s.tar.%s",
+			repo, u.version, u.compression)
 	case "gitlab.com":
-		url = fmt.Sprintf("https://%s/%s/%s/-/archive/v%s/%s-%s.tar.%s",
-			host, owner, project, u.version, project, u.version, u.compression)
+		parts := strings.Split(repoU.Path, "/")
+		if len(parts) < 3 {
+			return fmt.Errorf("Incomplete repo URL: %s", u.rr.Repo)
+		}
+		project := parts[2]
+		tarURL = fmt.Sprintf("%s/-/archive/v%[3]s/%[2]s-%s.tar.%s",
+			repo, project, u.version, u.compression)
 	default:
 		return fmt.Errorf("Unsupported hoster")
 	}
@@ -155,8 +158,8 @@ func (u *upstream) tarballFromHoster(repo string) error {
 	done := make(chan struct{})
 	go progressSize("Download", u.tarPath, done)
 
-	log.Printf("Downloading %s", url)
-	err := downloadFile(u.tarPath, url)
+	log.Printf("Downloading %s", tarURL)
+	err = downloadFile(u.tarPath, tarURL)
 
 	close(done)
 
@@ -176,7 +179,7 @@ func (u *upstream) tar(gopath, repo string) error {
 			log.Printf("Godeps/_workspace exists, not downloading tarball from hoster.")
 		} else {
 			u.compression = "gz"
-			err := u.tarballFromHoster(repo)
+			err := u.tarballFromHoster()
 			if err != nil && err.Error() == "Unsupported hoster" {
 				log.Printf("INFO: Hoster does not provide release tarball\n")
 			} else {
