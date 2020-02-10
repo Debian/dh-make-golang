@@ -159,7 +159,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 		log.Fatalf("Invalid pkgType %d in writeDebianControl(), aborting", pkgType)
 	}
 
-	fmt.Fprintf(f, "Standards-Version: 4.4.1\n")
+	fmt.Fprintf(f, "Standards-Version: 4.5.0\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
