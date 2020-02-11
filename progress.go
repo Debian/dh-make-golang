@@ -15,8 +15,8 @@ const (
 	Mebi
 	Gibi
 	Tebi
-	Pebi
-	Exbi
+	// Pebi
+	// Exbi
 )
 
 func humanizeBytes(b int64) string {

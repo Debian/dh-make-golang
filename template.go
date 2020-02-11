@@ -137,7 +137,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
 	// TODO: change this once we have a “golang” section.
-	fmt.Fprintf(f, "Section: devel\n")
+	fmt.Fprint(f, "Section: devel\n")
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Priority: optional\n")
 
@@ -236,7 +236,7 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 	fmt.Fprintf(f, "Comment: Debian packaging is licensed under the same terms as upstream\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "License: %s\n", license)
-	fmt.Fprintf(f, fulltext)
+	fmt.Fprint(f, fulltext)
 
 	return nil
 }
@@ -398,7 +398,7 @@ test_the_archive:
 	}
 	defer f.Close()
 
-	fmt.Fprintf(f, gitlabciymlTmpl)
+	fmt.Fprint(f, gitlabciymlTmpl)
 
 	return nil
 }
