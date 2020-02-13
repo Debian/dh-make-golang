@@ -138,6 +138,9 @@ func (u *upstream) tarballFromHoster() error {
 	var tarURL string
 	repo := strings.TrimSuffix(u.rr.Repo, ".git")
 	repoU, err := url.Parse(repo)
+	if err != nil {
+		return err
+	}
 
 	switch repoU.Host {
 	case "github.com":
