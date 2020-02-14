@@ -26,8 +26,8 @@ var githubLicenseToDebianLicense = map[string]string{
 	"isc":      "ISC",
 	"lgpl-2.1": "LGPL-2.1",
 	"lgpl-3.0": "LGPL-3.0",
-	//"mit" - expat?
-	"mpl-2.0": "MPL-2.0", // include in base-files >= 9.9
+	"mit":      "Expat",
+	"mpl-2.0":  "MPL-2.0", // include in base-files >= 9.9
 	//"unlicense" (not in debian)
 }
 
