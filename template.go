@@ -112,13 +112,11 @@ func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) 
 	addDescription(f, gopkg, "(library)")
 }
 
-func addProgramPackage(f *os.File, gopkg, debProg string, dependencies []string) {
+func addProgramPackage(f *os.File, gopkg, debProg string) {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debProg)
 	fmt.Fprintf(f, "Architecture: any\n")
-	deps := dependencies
-	sort.Strings(deps)
-	deps = append(deps, "${misc:Depends}", "${shlibs:Depends}")
+	deps := []string{"${misc:Depends}", "${shlibs:Depends}"}
 	fprintfControlField(f, "Depends", deps)
 	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
 	addDescription(f, gopkg, "(program)")
@@ -172,12 +170,12 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	case typeLibrary:
 		addLibraryPackage(f, gopkg, debLib, dependencies)
 	case typeProgram:
-		addProgramPackage(f, gopkg, debProg, dependencies)
+		addProgramPackage(f, gopkg, debProg)
 	case typeLibraryProgram:
 		addLibraryPackage(f, gopkg, debLib, dependencies)
-		addProgramPackage(f, gopkg, debProg, dependencies)
+		addProgramPackage(f, gopkg, debProg)
 	case typeProgramLibrary:
-		addProgramPackage(f, gopkg, debProg, dependencies)
+		addProgramPackage(f, gopkg, debProg)
 		addLibraryPackage(f, gopkg, debLib, dependencies)
 	default:
 		log.Fatalf("Invalid pkgType %d in writeDebianControl(), aborting", pkgType)
