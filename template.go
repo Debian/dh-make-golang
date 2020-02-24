@@ -365,7 +365,6 @@ func writeDebianGitLabCI(dir string) error {
 # The authoritative copy of this file lives at:
 # https://salsa.debian.org/go-team/ci/blob/master/config/gitlabciyml.go
 
-# TODO: publish under debian-go-team/ci
 image: stapelberg/ci2
 
 test_the_archive:
