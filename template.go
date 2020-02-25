@@ -139,23 +139,13 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Priority: optional\n")
 
-	builddeps := []string{"debhelper-compat (= 12)", "dh-golang"}
-	builddepsByType := append([]string{"golang-any"}, dependencies...)
-	sort.Strings(builddepsByType)
-	switch pkgType {
-	case typeLibrary, typeProgram:
-		fprintfControlField(f, "Build-Depends", builddeps)
-		builddepsDepType := "Indep"
-		if pkgType == typeProgram {
-			builddepsDepType = "Arch"
-		}
-		fprintfControlField(f, "Build-Depends-"+builddepsDepType, builddepsByType)
-	case typeLibraryProgram, typeProgramLibrary:
-		builddeps = append(builddeps, builddepsByType...)
-		fprintfControlField(f, "Build-Depends", builddeps)
-	default:
-		log.Fatalf("Invalid pkgType %d in writeDebianControl(), aborting", pkgType)
-	}
+	builddeps := append([]string{
+		"debhelper-compat (= 12)",
+		"dh-golang",
+		"golang-any"},
+		dependencies...)
+	sort.Strings(builddeps)
+	fprintfControlField(f, "Build-Depends", builddeps)
 
 	fmt.Fprintf(f, "Standards-Version: 4.5.0\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
