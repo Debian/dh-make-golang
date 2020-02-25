@@ -35,7 +35,8 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 		return err
 	}
 
-	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease); err != nil {
+	var repack bool = len(u.vendorDirs) > 0 || u.hasGodeps
+	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease, repack); err != nil {
 		return err
 	}
 
@@ -295,7 +296,7 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 	return nil
 }
 
-func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool) error {
+func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) error {
 	// TODO: Support other hosters too
 	host := "github.com"
 
@@ -314,16 +315,29 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool) error {
 	}
 	defer f.Close()
 
+	filenamemanglePattern := `s%%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%%%s-$1.tar.gz%%`
+	uversionmanglePattern := `s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/`
+
 	if hasRelease {
 		log.Printf("Setting debian/watch to track release tarball")
 		fmt.Fprintf(f, "version=4\n")
-		fmt.Fprintf(f, `opts="filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/, \`+"\n", debsrc)
-		fmt.Fprintf(f, `      uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/" \`+"\n")
+		fmt.Fprintf(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n", debsrc)
+		fmt.Fprintf(f, `      uversionmangle=`+uversionmanglePattern)
+		if repack {
+			fmt.Fprintf(f, `,\`+"\n")
+			fmt.Fprintf(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+		}
+		fmt.Fprintf(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
 	} else {
 		log.Printf("Setting debian/watch to track git HEAD")
 		fmt.Fprintf(f, "version=4\n")
-		fmt.Fprintf(f, `opts="mode=git, pgpmode=none" \`+"\n")
+		fmt.Fprintf(f, `opts="mode=git, pgpmode=none`)
+		if repack {
+			fmt.Fprintf(f, `,\`+"\n")
+			fmt.Fprintf(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+		}
+		fmt.Fprintf(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
 		fmt.Fprintf(f, "  HEAD debian\n")
 
@@ -332,8 +346,13 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool) error {
 		fmt.Fprintf(f, "# Use the following when upstream starts to tag releases:\n")
 		fmt.Fprintf(f, "#\n")
 		fmt.Fprintf(f, "#version=4\n")
-		fmt.Fprintf(f, `#opts="filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/%s-\$1\.tar\.gz/, \`+"\n", debsrc)
-		fmt.Fprintf(f, `#      uversionmangle=s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/" \`+"\n")
+		fmt.Fprintf(f, `#opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n", debsrc)
+		fmt.Fprintf(f, `#      uversionmangle=`+uversionmanglePattern)
+		if repack {
+			fmt.Fprintf(f, `,\`+"\n")
+			fmt.Fprintf(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+		}
+		fmt.Fprintf(f, `" \`+"\n")
 		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
 	}
 
