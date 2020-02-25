@@ -11,7 +11,10 @@ import (
 )
 
 func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
-	pkgType packageType, dependencies []string, u *upstream, dep14, pristineTar bool) error {
+	pkgType packageType, dependencies []string, u *upstream,
+	dep14, pristineTar bool,
+) error {
+
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
 		return err
 	}
@@ -31,21 +34,26 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 	if err := writeDebianRules(dir, pkgType); err != nil {
 		return err
 	}
-	if err := writeDebianSourceFormat(dir); err != nil {
-		return err
-	}
-	if err := writeDebianGbpConf(dir, dep14, pristineTar); err != nil {
-		return err
-	}
+
 	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease); err != nil {
+		return err
+	}
+
+	if err := writeDebianSourceFormat(dir); err != nil {
 		return err
 	}
 	if err := writeDebianPackageInstall(dir, debLib, debProg, pkgType); err != nil {
 		return err
 	}
+
+	if err := writeDebianGbpConf(dir, dep14, pristineTar); err != nil {
+		return err
+	}
+
 	if err := writeDebianGitLabCI(dir); err != nil {
 		return err
 	}
+
 	return nil
 }
 
