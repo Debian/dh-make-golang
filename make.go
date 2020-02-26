@@ -559,6 +559,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"golang.org":        "golang",
 		"google.golang.org": "google",
 		"gopkg.in":          "gopkg",
+		"honnef.co":         "honnef",
 		"howett.net":        "howett",
 		"k8s.io":            "k8s",
 		"pault.ag":          "pault",
