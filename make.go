@@ -784,6 +784,14 @@ func execMake(args []string, usage func()) {
 			"Valid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\n"+
 			"for more information.")
 
+	// ====================================================================
+	//
+	// Start actual make routine
+	//
+	// ====================================================================
+
+	log.Printf("Starting %q", buildVersionString())
+
 	err := fs.Parse(args)
 	if err != nil {
 		log.Fatal(err)
