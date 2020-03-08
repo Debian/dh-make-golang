@@ -175,27 +175,25 @@ func estimate(importpath string) error {
 	return nil
 }
 
-func recursiveEstimate(importpath string) error {
+func recursiveEstimate(importpath string, formatType string) error {
 	log.Print(aurora.Bold(aurora.Green("[DebGoGraph Starting]")))
 
-	project := importpath
-	returnType := "graph"
 	debFilter := true
 	displayAll := true
 
-	fmt.Printf("\nGolang package: %s\n", aurora.Bold(project))
-	fmt.Printf("Output type: %s\n", aurora.Bold(returnType))
+	fmt.Printf("\nGolang package: %s\n", aurora.Bold(importpath))
+	fmt.Printf("Output type: %s\n", aurora.Bold(formatType))
 	fmt.Printf("Deb filter: %v\n", aurora.Bold(debFilter))
 	fmt.Printf("Display all deb (false for only main package): %v\n\n", aurora.Bold(displayAll))
 
-	fmt.Printf("Fetching dependencies of %s | It may take a while.\n\n", aurora.Bold(aurora.BrightBlue(project)))
+	fmt.Printf("Fetching dependencies of %s | It may take a while.\n\n", aurora.Bold(aurora.BrightBlue(importpath)))
 
 	// List | Graph | Tree
-	m, err := gocheckdeb.GetDep(project, "imports", returnType)
+	m, err := gocheckdeb.GetDep(importpath, "imports", formatType)
 	if err != nil {
 		fmt.Println(err)
 	}
-	m2, err := gocheckdeb.GetDep(project, "test", returnType)
+	m2, err := gocheckdeb.GetDep(importpath, "test", formatType)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -214,6 +212,7 @@ func recursiveEstimate(importpath string) error {
 func execEstimate(args []string) {
 	fs := flag.NewFlagSet("estimate", flag.ExitOnError)
 	recursiveFlag := fs.Bool("r", false, "(Bool) Recursive output")
+	formatFlag := fs.String("format", "graph", "('graph', 'map', 'list') Format for the flag")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s estimate <go-package-importpath>\n", os.Args[0])
@@ -234,7 +233,7 @@ func execEstimate(args []string) {
 
 	// TODO: support the -git_revision flag
 	if *recursiveFlag {
-		err := recursiveEstimate(fs.Arg(0))
+		err := recursiveEstimate(fs.Arg(0), *formatFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
