@@ -143,8 +143,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
-	// TODO: change this once we have a “golang” section.
-	fmt.Fprintf(f, "Section: devel\n")
+	fmt.Fprintf(f, "Section: golang\n")
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Priority: optional\n")
 
