@@ -19,6 +19,9 @@ func gitCmdOrFatal(t *testing.T, tempdir string, arg ...string) {
 }
 
 func TestSnapshotVersion(t *testing.T) {
+	os.Setenv("TZ", "UTC")
+	defer os.Unsetenv("TZ")
+
 	tempdir, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
 		t.Fatalf("Could not create temp dir: %v", err)
