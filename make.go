@@ -563,6 +563,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"howett.net":        "howett",
 		"k8s.io":            "k8s",
 		"pault.ag":          "pault",
+		"rsc.io":            "rsc",
 		"salsa.debian.org":  "debian",
 		"sigs.k8s.io":       "k8s-sigs",
 	}
