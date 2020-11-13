@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 var (
@@ -37,6 +38,7 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 	if out, err := cmd.Output(); err == nil {
 		latestTag = strings.TrimSpace(string(out))
 		u.hasRelease = true
+		u.tag = latestTag
 		log.Printf("Found latest tag %q", latestTag)
 
 		if !semverRegexp.MatchString(latestTag) {
@@ -64,7 +66,9 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 		}
 
 		u.commitIsh = latestTag
-		u.version = strings.TrimPrefix(latestTag, "v")
+		u.version = strings.TrimLeftFunc(latestTag, func(r rune) bool {
+			return !unicode.IsNumber(r)
+		})
 
 		if forcePrerelease {
 			log.Printf("INFO: Force packaging master (prerelease) as requested by user")

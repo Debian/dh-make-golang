@@ -107,6 +107,7 @@ type upstream struct {
 	tarPath     string   // path to the downloaded or generated orig tarball tempfile
 	compression string   // compression method, either "gz" or "xz"
 	version     string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
+	tag         string   // Latest upstream tag, if any
 	commitIsh   string   // commit-ish corresponding to upstream version to be packaged
 	remote      string   // git remote, set to short hostname if upstream git history is included
 	firstMain   string   // import path of the first main package within repo, if any
@@ -144,16 +145,16 @@ func (u *upstream) tarballFromHoster() error {
 
 	switch repoU.Host {
 	case "github.com":
-		tarURL = fmt.Sprintf("%s/archive/v%s.tar.%s",
-			repo, u.version, u.compression)
+		tarURL = fmt.Sprintf("%s/archive/%s.tar.%s",
+			repo, u.tag, u.compression)
 	case "gitlab.com":
 		parts := strings.Split(repoU.Path, "/")
 		if len(parts) < 3 {
 			return fmt.Errorf("Incomplete repo URL: %s", u.rr.Repo)
 		}
 		project := parts[2]
-		tarURL = fmt.Sprintf("%s/-/archive/v%[3]s/%[2]s-%s.tar.%s",
-			repo, project, u.version, u.compression)
+		tarURL = fmt.Sprintf("%s/-/archive/%s/%s-%s.tar.%s",
+			repo, u.tag, project, u.tag, u.compression)
 	default:
 		return fmt.Errorf("Unsupported hoster")
 	}
