@@ -68,7 +68,7 @@ func findVendorDirs(dir string) ([]string, error) {
 		if info.Name() == "vendor" {
 			rel, err := filepath.Rel(dir, path)
 			if err != nil {
-				return err
+				return fmt.Errorf("filepath.Rel: %w", err)
 			}
 			vendorDirs = append(vendorDirs, rel)
 		}
@@ -80,22 +80,22 @@ func findVendorDirs(dir string) ([]string, error) {
 func downloadFile(filename, url string) error {
 	dst, err := os.Create(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("create: %w", err)
 	}
 	defer dst.Close()
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("http get: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return fmt.Errorf(resp.Status)
+		return fmt.Errorf("response: %s", resp.Status)
 	}
 
 	_, err = io.Copy(dst, resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("copy: %w", err)
 	}
 
 	return nil
@@ -125,7 +125,7 @@ func (u *upstream) get(gopath, repo, rev string) error {
 
 	rr, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("get repo root: %w", err)
 	}
 	u.rr = rr
 	dir := filepath.Join(gopath, "src", rr.Root)
@@ -140,7 +140,7 @@ func (u *upstream) tarballFromHoster() error {
 	repo := strings.TrimSuffix(u.rr.Repo, ".git")
 	repoU, err := url.Parse(repo)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse URL: %w", err)
 	}
 
 	switch repoU.Host {
@@ -173,7 +173,7 @@ func (u *upstream) tarballFromHoster() error {
 func (u *upstream) tar(gopath, repo string) error {
 	f, err := ioutil.TempFile("", "dh-make-golang")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp file: %w", err)
 	}
 	u.tarPath = f.Name()
 	f.Close()
@@ -187,7 +187,7 @@ func (u *upstream) tar(gopath, repo string) error {
 			if err != nil && err.Error() == "Unsupported hoster" {
 				log.Printf("INFO: Hoster does not provide release tarball\n")
 			} else {
-				return err
+				return fmt.Errorf("tarball from hoster: %w", err)
 			}
 		}
 	}
@@ -219,7 +219,7 @@ func (u *upstream) findMains(gopath, repo string) error {
 	}, passthroughEnv()...)
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("%v: %v", cmd.Args, err)
+		return fmt.Errorf("go list %s (args: %v): %w", repo, cmd.Args, err)
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if strings.Contains(line, "/vendor/") ||
@@ -248,7 +248,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("%v: %v", cmd.Args, err)
+		return fmt.Errorf("go list %s (args: %v): %w", repo, cmd.Args, err)
 	}
 
 	godependencies := make(map[string]bool)
@@ -281,7 +281,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 
 	out, err = cmd.Output()
 	if err != nil {
-		return fmt.Errorf("%v: %v", cmd.Args, err)
+		return fmt.Errorf("go list std: (args: %v): %w", cmd.Args, err)
 	}
 
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -311,7 +311,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*upstream, error) {
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create tmp dir: %w", err)
 	}
 	defer os.RemoveAll(gopath)
 	repoDir := filepath.Join(gopath, "src", repo)
@@ -320,7 +320,7 @@ func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*up
 
 	log.Printf("Downloading %q\n", repo+"/...")
 	if err := u.get(gopath, repo, revision); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("go get: %w", err)
 	}
 
 	// Verify early this repository uses git (we call pkgVersionFromGit later):
@@ -334,13 +334,13 @@ func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*up
 
 	u.vendorDirs, err = findVendorDirs(repoDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find vendor dirs: %w", err)
 	}
 	if len(u.vendorDirs) > 0 {
 		log.Printf("Deleting upstream vendor/ directories")
 		for _, dir := range u.vendorDirs {
 			if err := os.RemoveAll(filepath.Join(repoDir, dir)); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("remove all: %w", err)
 			}
 		}
 	}
@@ -354,21 +354,21 @@ func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*up
 
 	u.version, err = pkgVersionFromGit(repoDir, &u, forcePrerelease)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get package version from Git: %w", err)
 	}
 
 	log.Printf("Package version is %q\n", u.version)
 
 	if err := u.findMains(gopath, repo); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find mains: %w", err)
 	}
 
 	if err := u.findDependencies(gopath, repo); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find dependencies: %w", err)
 	}
 
 	if err := u.tar(gopath, repo); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tar: %w", err)
 	}
 
 	return &u, nil
@@ -385,20 +385,20 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	includeUpstreamHistory, allowUnknownHoster, dep14, pristineTar bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get cwd: %w", err)
 	}
 	dir := filepath.Join(wd, debsrc)
 	if err := os.Mkdir(dir, 0755); err != nil {
-		return "", err
+		return "", fmt.Errorf("mkdir: %w", err)
 	}
 
 	if err := runGitCommandIn(dir, "init"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git init: %w", err)
 	}
 
 	if dep14 {
 		if err := runGitCommandIn(dir, "checkout", "-q", "-b", "debian/sid"); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git checkout: %w", err)
 		}
 	}
 
@@ -406,16 +406,16 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	if debianName := getDebianName(); debianName != "TODO" {
 		if err := runGitCommandIn(dir, "config", "user.name", debianName); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git config user.name: %w", err)
 		}
 	}
 	if debianEmail := getDebianEmail(); debianEmail != "TODO" {
 		if err := runGitCommandIn(dir, "config", "user.email", debianEmail); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git config user.email: %w", err)
 		}
 	}
 	if err := runGitCommandIn(dir, "config", "push.default", "matching"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git config push.default: %w", err)
 	}
 
 	// [remote "origin"]
@@ -423,13 +423,13 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	originURL := "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
 	log.Printf("Adding remote \"origin\" with URL %q\n", originURL)
 	if err := runGitCommandIn(dir, "remote", "add", "origin", originURL); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git remote add origin %s: %w", originURL, err)
 	}
 	if err := runGitCommandIn(dir, "config", "--add", "remote.origin.push", "+refs/heads/*:refs/heads/*"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git config --add remote.origin.push */heads/*: %w", err)
 	}
 	if err := runGitCommandIn(dir, "config", "--add", "remote.origin.push", "+refs/tags/*:refs/tags/*"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git config --add remote.origin.push */tags/*: %w", err)
 	}
 
 	// Preconfigure branches
@@ -446,10 +446,10 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 	for _, branch := range branches {
 		if err := runGitCommandIn(dir, "config", "branch."+branch+".remote", "origin"); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git config branch.%s.remote origin: %w", branch, err)
 		}
 		if err := runGitCommandIn(dir, "config", "branch."+branch+".merge", "refs/heads/"+branch); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git config branch.%s.merge refs/heads/%s: %w", branch, branch, err)
 		}
 	}
 
@@ -460,11 +460,11 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		}
 		log.Printf("Adding remote %q with URL %q\n", u.remote, u.rr.Repo)
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git remote add %s %s: %w", u.remote, u.rr.Repo, err)
 		}
 		log.Printf("Running \"git fetch %s\"\n", u.remote)
 		if err := runGitCommandIn(dir, "fetch", u.remote); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("git fetch %s: %w", u.remote, err)
 		}
 	}
 
@@ -485,30 +485,30 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("import-orig: %w", err)
 	}
 
 	{
 		f, err := os.OpenFile(filepath.Join(dir, ".gitignore"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			return dir, err
+			return dir, fmt.Errorf("open .gitignore: %w", err)
 		}
 		// Beginning newline in case the file already exists and lacks a newline
 		// (not all editors enforce a newline at the end of the file):
 		if _, err := f.Write([]byte("\n.pc\n")); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("write to .gitignore: %w", err)
 		}
 		if err := f.Close(); err != nil {
-			return dir, err
+			return dir, fmt.Errorf("close .gitignore: %w", err)
 		}
 	}
 
 	if err := runGitCommandIn(dir, "add", ".gitignore"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git add .gitignore: %w", err)
 	}
 
 	if err := runGitCommandIn(dir, "commit", "-m", "Ignore quilt dir .pc via .gitignore"); err != nil {
-		return dir, err
+		return dir, fmt.Errorf("git commit (.gitignore): %w", err)
 	}
 
 	return dir, nil
@@ -640,7 +640,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 	itpname := fmt.Sprintf("itp-%s.txt", debsrc)
 	f, err := os.Create(itpname)
 	if err != nil {
-		return itpname, err
+		return itpname, fmt.Errorf("create file: %w", err)
 	}
 	defer f.Close()
 
@@ -698,16 +698,16 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 func copyFile(src, dest string) error {
 	input, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("open: %w", err)
 	}
 	defer input.Close()
 
 	output, err := os.Create(dest)
 	if err != nil {
-		return err
+		return fmt.Errorf("create: %w", err)
 	}
 	if _, err := io.Copy(output, input); err != nil {
-		return err
+		return fmt.Errorf("copy: %w", err)
 	}
 	return output.Close()
 }
@@ -804,7 +804,7 @@ func execMake(args []string, usage func()) {
 
 	err := fs.Parse(args)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("parse args: %w", err)
 	}
 
 	if fs.NArg() < 1 {

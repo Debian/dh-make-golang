@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -22,17 +23,17 @@ func reformatForControl(raw string) string {
 func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("find github repo: %w", err)
 	}
 
 	rr, _, err := gitHub.Repositories.GetReadme(context.TODO(), owner, repo, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get readme: %w", err)
 	}
 
 	content, err := rr.GetContent()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get content: %w", err)
 	}
 
 	// Supported filename suffixes are from
@@ -55,7 +56,7 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	cmd.Stdin = bytes.NewBuffer(output)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fmt: %w", err)
 	}
 	return reformatForControl(strings.TrimSpace(string(out))), nil
 }

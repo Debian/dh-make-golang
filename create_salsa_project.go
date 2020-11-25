@@ -19,7 +19,7 @@ func execCreateSalsaProject(args []string) {
 	}
 
 	if err := fs.Parse(args); err != nil {
-		log.Fatal(err)
+		log.Fatalf("parse: %s", err)
 	}
 
 	if fs.NArg() != 1 {
@@ -38,7 +38,7 @@ func execCreateSalsaProject(args []string) {
 
 	resp, err := http.Post(u.String(), "", nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("http post: %s", err)
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		b, _ := ioutil.ReadAll(resp.Body)

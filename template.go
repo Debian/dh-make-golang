@@ -16,46 +16,46 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 ) error {
 
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
-		return err
+		return fmt.Errorf("mkdir debian/: %w", err)
 	}
 	if err := os.Mkdir(filepath.Join(dir, "debian", "source"), 0755); err != nil {
-		return err
+		return fmt.Errorf("mkdir debian/source/: %w", err)
 	}
 
 	if err := writeDebianChangelog(dir, debsrc, debversion); err != nil {
-		return err
+		return fmt.Errorf("write changelog: %w", err)
 	}
 	if err := writeDebianControl(dir, gopkg, debsrc, debLib, debProg, pkgType, dependencies); err != nil {
-		return err
+		return fmt.Errorf("write control: %w", err)
 	}
 	if err := writeDebianCopyright(dir, gopkg, u.vendorDirs, u.hasGodeps); err != nil {
-		return err
+		return fmt.Errorf("write copyright: %w", err)
 	}
 	if err := writeDebianRules(dir, pkgType); err != nil {
-		return err
+		return fmt.Errorf("write rules: %w", err)
 	}
 
 	var repack bool = len(u.vendorDirs) > 0 || u.hasGodeps
 	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease, repack); err != nil {
-		return err
+		return fmt.Errorf("write watch: %w", err)
 	}
 
 	if err := writeDebianSourceFormat(dir); err != nil {
-		return err
+		return fmt.Errorf("write source/format: %w", err)
 	}
 	if err := writeDebianPackageInstall(dir, debLib, debProg, pkgType); err != nil {
-		return err
+		return fmt.Errorf("write install: %w", err)
 	}
 	if err := writeDebianUpstreamMetadata(dir, gopkg); err != nil {
-		return err
+		return fmt.Errorf("write upstream metadata: %w", err)
 	}
 
 	if err := writeDebianGbpConf(dir, dep14, pristineTar); err != nil {
-		return err
+		return fmt.Errorf("write gbp conf: %w", err)
 	}
 
 	if err := writeDebianGitLabCI(dir); err != nil {
-		return err
+		return fmt.Errorf("write GitLab CI: %w", err)
 	}
 
 	return nil
