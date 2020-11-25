@@ -50,34 +50,34 @@ func removeVendor(gopath string) (found bool, _ error) {
 		}
 		found = true
 		if err := os.RemoveAll(path); err != nil {
-			return err
+			return fmt.Errorf("remove all: %w", err)
 		}
 		return filepath.SkipDir
 	})
-	return found, err
+	return found, fmt.Errorf("walk: %w", err)
 }
 
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp dir: %w", err)
 	}
 	defer os.RemoveAll(gopath)
 
 	if err := get(gopath, importpath); err != nil {
-		return err
+		return fmt.Errorf("go get: %w", err)
 	}
 
 	found, err := removeVendor(gopath)
 	if err != nil {
-		return err
+		return fmt.Errorf("remove vendor: %w", err)
 	}
 
 	if found {
 		// Fetch un-vendored dependencies
 		if err := get(gopath, importpath); err != nil {
-			return err
+			return fmt.Errorf("fetch un-vendored: go get: %w", err)
 		}
 	}
 
@@ -91,7 +91,7 @@ func estimate(importpath string) error {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("%v: %v", cmd.Args, err)
+		return fmt.Errorf("go list std: args: %v; error: %w", cmd.Args, err)
 	}
 	stdlib := make(map[string]bool)
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -187,7 +187,7 @@ func execEstimate(args []string) {
 
 	err := fs.Parse(args)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("parse args: %s", err)
 	}
 
 	if fs.NArg() != 1 {
@@ -198,6 +198,6 @@ func execEstimate(args []string) {
 	// TODO: support the -git_revision flag
 
 	if err := estimate(fs.Arg(0)); err != nil {
-		log.Fatal(err)
+		log.Fatalf("estimate: %s", err)
 	}
 }

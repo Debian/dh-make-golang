@@ -81,7 +81,7 @@ func findGitHubOwnerRepo(gopkg string) (string, error) {
 	}
 	resp, err := http.Get("https://" + gopkg + "?go-get=1")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("HTTP get: %w", err)
 	}
 	defer resp.Body.Close()
 	z := html.NewTokenizer(resp.Body)
@@ -129,7 +129,7 @@ func findGitHubOwnerRepo(gopkg string) (string, error) {
 func findGitHubRepo(gopkg string) (owner string, repo string, _ error) {
 	ownerrepo, err := findGitHubOwnerRepo(gopkg)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("find GitHub owner repo: %w", err)
 	}
 	parts := strings.Split(ownerrepo, "/")
 	if got, want := len(parts), 2; got != want {
@@ -141,12 +141,12 @@ func findGitHubRepo(gopkg string) (owner string, repo string, _ error) {
 func getLicenseForGopkg(gopkg string) (string, string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("find GitHub repo: %w", err)
 	}
 
 	rl, _, err := gitHub.Repositories.License(context.TODO(), owner, repo)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("get license for Go package: %w", err)
 	}
 
 	if deblicense, ok := githubLicenseToDebianLicense[rl.GetLicense().GetKey()]; ok {
@@ -163,12 +163,12 @@ func getLicenseForGopkg(gopkg string) (string, string, error) {
 func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("find GitHub repo: %w", err)
 	}
 
 	rr, _, err := gitHub.Repositories.Get(context.TODO(), owner, repo)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("get repo: %w", err)
 	}
 
 	if strings.TrimSpace(rr.GetOwner().GetURL()) == "" {
@@ -177,7 +177,7 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 
 	ur, _, err := gitHub.Users.Get(context.TODO(), rr.GetOwner().GetLogin())
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("get user: %w", err)
 	}
 
 	copyright := rr.CreatedAt.Format("2006") + " " + ur.GetName()
@@ -195,7 +195,7 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 func getDescriptionForGopkg(gopkg string) (string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("find GitHub repo: %w", err)
 	}
 
 	rr, _, err := gitHub.Repositories.Get(context.TODO(), owner, repo)

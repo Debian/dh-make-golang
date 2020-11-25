@@ -1,6 +1,6 @@
 module github.com/Debian/dh-make-golang
 
-go 1.12
+go 1.13
 
 require (
 	github.com/google/go-github/v38 v38.1.0
