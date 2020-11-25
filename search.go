@@ -20,7 +20,7 @@ func getGolangBinaries() (map[string]string, error) {
 
 	resp, err := http.Get(golangBinariesURL)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+		return nil, fmt.Errorf("getting %q: %s", golangBinariesURL, err)
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
@@ -31,7 +31,7 @@ func getGolangBinaries() (map[string]string, error) {
 		Source         string `json:"source"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
-		return nil, fmt.Errorf("decode: %w", err)
+		return nil, fmt.Errorf("decode: %s", err)
 	}
 	for _, pkg := range pkgs {
 		if !strings.HasSuffix(pkg.Binary, "-dev") {

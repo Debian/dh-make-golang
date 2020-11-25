@@ -51,11 +51,11 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 		cmd.Dir = gitdir
 		out, err := cmd.Output()
 		if err != nil {
-			return "", fmt.Errorf("git rev-list: %w", err)
+			return "", fmt.Errorf("git rev-list: %s", err)
 		}
 		commitsAhead, err = strconv.Atoi(strings.TrimSpace(string(out)))
 		if err != nil {
-			return "", fmt.Errorf("parse commits ahead: %w", err)
+			return "", fmt.Errorf("parse commits ahead: %s", err)
 		}
 
 		if commitsAhead == 0 {
@@ -93,11 +93,11 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 	cmd.Dir = gitdir
 	lastCommitUnixBytes, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git log: %w", err)
+		return "", fmt.Errorf("git log: %s", err)
 	}
 	lastCommitUnix, err := strconv.ParseInt(strings.TrimSpace(string(lastCommitUnixBytes)), 0, 64)
 	if err != nil {
-		return "", fmt.Errorf("parse last commit date: %w", err)
+		return "", fmt.Errorf("parse last commit date: %s", err)
 	}
 
 	// This results in an output like "v4.10.2-232-g9f107c8"
@@ -112,7 +112,7 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 		cmd.Stderr = os.Stderr
 		revparseBytes, err := cmd.Output()
 		if err != nil {
-			return "", fmt.Errorf("git rev-parse: %w", err)
+			return "", fmt.Errorf("git rev-parse: %s", err)
 		}
 		lastCommitHash = strings.TrimSpace(string(revparseBytes))
 		u.commitIsh = lastCommitHash

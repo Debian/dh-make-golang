@@ -49,34 +49,34 @@ func removeVendor(gopath string) (found bool, _ error) {
 		}
 		found = true
 		if err := os.RemoveAll(path); err != nil {
-			return fmt.Errorf("remove all: %w", err)
+			return fmt.Errorf("remove all: %s", err)
 		}
 		return filepath.SkipDir
 	})
-	return found, fmt.Errorf("walk: %w", err)
+	return found, fmt.Errorf("walk: %s", err)
 }
 
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
+		return fmt.Errorf("create temp dir: %s", err)
 	}
 	defer os.RemoveAll(gopath)
 
 	if err := get(gopath, importpath); err != nil {
-		return fmt.Errorf("go get: %w", err)
+		return fmt.Errorf("go get: %s", err)
 	}
 
 	found, err := removeVendor(gopath)
 	if err != nil {
-		return fmt.Errorf("remove vendor: %w", err)
+		return fmt.Errorf("remove vendor: %s", err)
 	}
 
 	if found {
 		// Fetch un-vendored dependencies
 		if err := get(gopath, importpath); err != nil {
-			return fmt.Errorf("fetch un-vendored: go get: %w", err)
+			return fmt.Errorf("fetch un-vendored: go get: %s", err)
 		}
 	}
 
@@ -89,7 +89,7 @@ func estimate(importpath string) error {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("go list std: args: %v; error: %w", cmd.Args, err)
+		return fmt.Errorf("go list std: args: %v; error: %s", cmd.Args, err)
 	}
 	stdlib := make(map[string]bool)
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
