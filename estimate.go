@@ -56,7 +56,7 @@ func removeVendor(gopath string) (found bool, _ error) {
 	return found, err
 }
 
-func estimate(importpath string) error {
+func estimate(baseImportPath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := ioutil.TempDir("", "dh-make-golang")
 	if err != nil {
@@ -64,7 +64,7 @@ func estimate(importpath string) error {
 	}
 	defer os.RemoveAll(gopath)
 
-	if err := get(gopath, importpath); err != nil {
+	if err := get(gopath, baseImportPath); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func estimate(importpath string) error {
 
 	if found {
 		// Fetch un-vendored dependencies
-		if err := get(gopath, importpath); err != nil {
+		if err := get(gopath, baseImportPath); err != nil {
 			return err
 		}
 	}
@@ -105,7 +105,7 @@ func estimate(importpath string) error {
 	}
 
 	build.Default.GOPATH = gopath
-	forward, _, errors := importgraph.Build(&build.Default)
+	forwardDependencies, _, errors := importgraph.Build(&build.Default)
 	if len(errors) > 0 {
 		lines := make([]string, 0, len(errors))
 		for importPath, err := range errors {
@@ -114,7 +114,7 @@ func estimate(importpath string) error {
 		return fmt.Errorf("could not load packages: %v", strings.Join(lines, "\n"))
 	}
 
-	var lines []string
+	var notPackaged []string
 	seen := make(map[string]bool)
 	rrseen := make(map[string]bool)
 	node := func(importPath string, indent int) {
@@ -130,43 +130,43 @@ func estimate(importpath string) error {
 		if _, ok := golangBinaries[rr.Root]; ok {
 			return // already packaged in Debian
 		}
-		lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), rr.Root))
+		notPackaged = append(notPackaged, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), rr.Root))
 	}
-	var visit func(x string, indent int)
-	visit = func(x string, indent int) {
-		if seen[x] {
+	var recVisit func(x string, indent int)
+	visit := func(importPath string, indent int) {
+		if seen[importPath] {
 			return
 		}
-		seen[x] = true
-		if !stdlib[x] {
-			node(x, indent)
+		seen[importPath] = true
+		if !stdlib[importPath] {
+			node(importPath, indent)
 		}
-		for y := range forward[x] {
-			visit(y, indent+1)
+		for child := range forwardDependencies[importPath] {
+			recVisit(child, indent+1)
 		}
 	}
+	recVisit = visit
 
-	keys := make([]string, 0, len(forward))
-	for key := range forward {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		if !strings.HasPrefix(key, importpath) {
-			continue
+	importPaths := make([]string, 0, len(forwardDependencies))
+	for importPath := range forwardDependencies {
+		if strings.HasPrefix(importPath, baseImportPath) {
+			importPaths = append(importPaths, importPath)
 		}
-		if seen[key] {
+	}
+	sort.Strings(importPaths)
+	for _, importPath := range importPaths {
+		if seen[importPath] {
 			continue // already covered in a previous visit call
 		}
-		visit(key, 0)
+		visit(importPath, 0)
 	}
 
-	if len(lines) == 0 {
-		log.Printf("%s is already fully packaged in Debian", importpath)
+	if len(notPackaged) == 0 {
+		log.Printf("%s is already fully packaged in Debian", baseImportPath)
 		return nil
 	}
-	log.Printf("Bringing %s to Debian requires packaging the following Go packages:", importpath)
-	for _, line := range lines {
+	log.Printf("Bringing %s to Debian requires packaging the following Go packages:", baseImportPath)
+	for _, line := range notPackaged {
 		fmt.Println(line)
 	}
 
