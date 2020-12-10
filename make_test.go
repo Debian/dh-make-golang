@@ -15,7 +15,7 @@ var shortName = []struct {
 
 func TestAcceptInput(t *testing.T) {
 	for _, tt := range shortName {
-		in := normalizeDebianProgramName(tt.in)
+		in := normalizeDebianPackageName(tt.in)
 		if in != tt.out {
 			t.Errorf("userInput(%q) => %q, want %q", tt.in, in, tt.out)
 		}
@@ -35,11 +35,11 @@ var miscName = []struct {
 	{"7h_make*go+3*.@", "7h-makego+3."},
 }
 
-func TestNormalizeDebianProgramName(t *testing.T) {
+func TestNormalizeDebianPackageName(t *testing.T) {
 	for _, tt := range miscName {
-		s := normalizeDebianProgramName(tt.in)
+		s := normalizeDebianPackageName(tt.in)
 		if s != tt.out {
-			t.Errorf("normalizeDebianProgramName(%q) => %q, want %q", tt.in, s, tt.out)
+			t.Errorf("normalizeDebianPackageName(%q) => %q, want %q", tt.in, s, tt.out)
 		}
 	}
 }
