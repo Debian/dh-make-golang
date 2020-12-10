@@ -598,15 +598,7 @@ func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) s
 	}
 	parts[0] = host
 
-	for i := range parts {
-		if i == 0 {
-			continue
-		}
-
-		parts[i] = normalizeDebianProgramName(parts[i])
-	}
-
-	return strings.Trim("golang-"+strings.Join(parts, "-"), "-")
+	return normalizeDebianProgramName("golang-" + strings.Join(parts, "-"))
 }
 
 func getDebianName() string {
