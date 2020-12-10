@@ -52,6 +52,7 @@ var nameFromGoPkg = []struct {
 	{"github.com/Debian/dh-make-golang", typeProgram, "dh-make-golang"},
 	{"github.com/Debian/DH-make-golang", typeGuess, "golang-github-debian-dh-make-golang"},
 	{"github.com/Debian/dh_make_golang", typeGuess, "golang-github-debian-dh-make-golang"},
+	{"golang.org/x/term", typeLibrary, "golang-golang-x-term"},
 }
 
 func TestDebianNameFromGopkg(t *testing.T) {
