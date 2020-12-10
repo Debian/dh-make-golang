@@ -52,6 +52,8 @@ var nameFromGoPkg = []struct {
 	{"github.com/Debian/dh-make-golang", typeProgram, "dh-make-golang"},
 	{"github.com/Debian/DH-make-golang", typeGuess, "golang-github-debian-dh-make-golang"},
 	{"github.com/Debian/dh_make_golang", typeGuess, "golang-github-debian-dh-make-golang"},
+	{"github.com/sean-/seed", typeGuess, "golang-github-sean--seed"},
+	{"git.sr.ht/~sircmpwn/getopt", typeGuess, "golang-sourcehut-sircmpwn-getopt"},
 	{"golang.org/x/term", typeLibrary, "golang-golang-x-term"},
 }
 
