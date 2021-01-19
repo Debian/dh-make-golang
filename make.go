@@ -982,6 +982,7 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("    dh-make-golang create-salsa-project %s\n", debsrc)
 	fmt.Printf("\n")
 	fmt.Printf("Once you are happy with your packaging, push it to salsa using:\n")
+	fmt.Printf("    git push origin %s\n", debBranch)
 	fmt.Printf("    gbp push\n")
 	fmt.Printf("\n")
 
