@@ -495,7 +495,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		}
 		// Beginning newline in case the file already exists and lacks a newline
 		// (not all editors enforce a newline at the end of the file):
-		if _, err := f.Write([]byte("\n.pc\n")); err != nil {
+		if _, err := f.Write([]byte("\n/.pc/\n/_build/\n")); err != nil {
 			return dir, err
 		}
 		if err := f.Close(); err != nil {
@@ -507,7 +507,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		return dir, err
 	}
 
-	if err := runGitCommandIn(dir, "commit", "-m", "Ignore quilt dir .pc via .gitignore"); err != nil {
+	if err := runGitCommandIn(dir, "commit", "-m", "Ignore _build and quilt .pc dirs via .gitignore"); err != nil {
 		return dir, err
 	}
 
