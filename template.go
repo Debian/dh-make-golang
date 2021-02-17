@@ -427,6 +427,7 @@ test_the_archive:
     # Create an overlay to discard writes to /srv/gopath/src after the build:
     - "rm -rf /cache/overlay/{upper,work}"
     - "mkdir -p /cache/overlay/{upper,work}"
+    - "[[ -d /srv/gopath/src ]] || mkdir -p /srv/gopath/src"
     - "mount -t overlay overlay -o lowerdir=/srv/gopath/src,upperdir=/cache/overlay/upper,workdir=/cache/overlay/work /srv/gopath/src"
     - "export GOPATH=/srv/gopath"
     - "export GOCACHE=/cache/go"
