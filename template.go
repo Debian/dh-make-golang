@@ -16,7 +16,18 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 ) error {
 
 	if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
-		return err
+		// If upstream debian dir exists, try to move it aside, and then below.
+		if err := os.Rename(filepath.Join(dir, "debian"), filepath.Join(dir, "upstream_debian")); err != nil {
+			return err
+		} else {  // Second attempt to create template debian dir, after moving upstream dir aside.
+			if err := os.Mkdir(filepath.Join(dir, "debian"), 0755); err != nil {
+				return err
+			}
+			if err := os.Rename(filepath.Join(dir, "upstream_debian"), filepath.Join(dir, "debian/upstream_debian")); err != nil {
+				return err
+			}
+			log.Printf("WARNING: Upstream debian/ dir found, and relocated to debian/upstream_debian/\n")
+		}
 	}
 	if err := os.Mkdir(filepath.Join(dir, "debian", "source"), 0755); err != nil {
 		return err
