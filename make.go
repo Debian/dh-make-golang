@@ -382,7 +382,7 @@ func runGitCommandIn(dir string, arg ...string) error {
 }
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
-	includeUpstreamHistory, allowUnknownHoster, dep14, pristineTar bool) (string, error) {
+	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, pristineTar bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -392,14 +392,8 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		return "", err
 	}
 
-	if err := runGitCommandIn(dir, "init"); err != nil {
+	if err := runGitCommandIn(dir, "init", "-b", debianBranch); err != nil {
 		return dir, err
-	}
-
-	if dep14 {
-		if err := runGitCommandIn(dir, "checkout", "-q", "-b", "debian/sid"); err != nil {
-			return dir, err
-		}
 	}
 
 	// Set repository options
@@ -434,12 +428,6 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// Preconfigure branches
 
-	var debianBranch string
-	if dep14 {
-		debianBranch = "debian/sid"
-	} else {
-		debianBranch = "master"
-	}
 	branches := []string{debianBranch, "upstream"}
 	if pristineTar {
 		branches = append(branches, "pristine-tar")
@@ -470,10 +458,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// Import upstream orig tarball
 
-	arg := []string{"import-orig", "--no-interactive"}
-	if dep14 {
-		arg = append(arg, "--debian-branch=debian/sid")
-	}
+	arg := []string{"import-orig", "--no-interactive", "--debian-branch=" + debianBranch}
 	if pristineTar {
 		arg = append(arg, "--pristine-tar")
 	}
@@ -844,6 +829,12 @@ func execMake(args []string, usage func()) {
 		log.Fatalf("-type=%q not recognized, aborting\n", pkgTypeString)
 	}
 
+	// Set the debian branch.
+	debBranch := "master"
+	if dep14 {
+		debBranch = "debian/sid"
+	}
+
 	switch strings.TrimSpace(wrapAndSort) {
 	case "a":
 		// Current default, also what "cme fix dpkg" generates
@@ -930,7 +921,7 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, dep14, pristineTar)
+	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
@@ -992,6 +983,7 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("    dh-make-golang create-salsa-project %s\n", debsrc)
 	fmt.Printf("\n")
 	fmt.Printf("Once you are happy with your packaging, push it to salsa using:\n")
+	fmt.Printf("    git push origin %s\n", debBranch)
 	fmt.Printf("    gbp push\n")
 	fmt.Printf("\n")
 
