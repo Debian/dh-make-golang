@@ -1,2 +1,4 @@
 dh-make-golang
 _build/
+*~
+*.sw[op]
