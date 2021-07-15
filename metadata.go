@@ -43,14 +43,14 @@ var debianLicenseText = map[string]string{
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
- .
+Comment:
  On Debian systems, the complete text of the Apache version 2.0 license
  can be found in "/usr/share/common-licenses/Apache-2.0".
 `,
 	"MPL-2.0": ` This Source Code Form is subject to the terms of the Mozilla Public
  License, v. 2.0. If a copy of the MPL was not distributed with this
  file, You can obtain one at http://mozilla.org/MPL/2.0/.
- .
+Comment:
  On Debian systems, the complete text of the MPL-2.0 license can be found
  in "/usr/share/common-licenses/MPL-2.0".
 `,
