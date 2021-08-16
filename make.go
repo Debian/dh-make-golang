@@ -551,6 +551,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"blitiri.com.ar":    "blitiri",
 		"cloud.google.com":  "googlecloud",
 		"code.google.com":   "googlecode",
+		"fyne.io":           "fyne",
 		"git.sr.ht":         "sourcehut",
 		"github.com":        "github",
 		"gitlab.com":        "gitlab",
