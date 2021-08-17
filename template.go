@@ -236,7 +236,7 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 	fmt.Fprintf(f, "Comment: Debian packaging is licensed under the same terms as upstream\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "License: %s\n", license)
-	fmt.Fprintf(f, fulltext)
+	fmt.Fprint(f, fulltext)
 
 	return nil
 }
@@ -446,7 +446,7 @@ test_the_archive:
 	}
 	defer f.Close()
 
-	fmt.Fprintf(f, gitlabciymlTmpl)
+	fmt.Fprint(f, gitlabciymlTmpl)
 
 	return nil
 }

@@ -155,7 +155,7 @@ func getAuthorAndCopyrightForGopkg(gopkg string) (string, string, error) {
 	}
 
 	if strings.TrimSpace(rr.GetOwner().GetURL()) == "" {
-		return "", "", fmt.Errorf("Repository owner URL not present in API response")
+		return "", "", fmt.Errorf("repository owner URL not present in API response")
 	}
 
 	ur, _, err := gitHub.Users.Get(context.TODO(), rr.GetOwner().GetLogin())
