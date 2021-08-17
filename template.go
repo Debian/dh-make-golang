@@ -237,6 +237,7 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprint(f, fulltext)
+	fmt.Fprint(f, "\n")
 
 	return nil
 }
