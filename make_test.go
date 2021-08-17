@@ -45,21 +45,23 @@ func TestNormalizeDebianPackageName(t *testing.T) {
 }
 
 var nameFromGoPkg = []struct {
-	in  string
-	t   packageType
-	out string
+	in     string
+	t      packageType
+	custom string
+	out    string
 }{
-	{"github.com/Debian/dh-make-golang", typeProgram, "dh-make-golang"},
-	{"github.com/Debian/DH-make-golang", typeGuess, "golang-github-debian-dh-make-golang"},
-	{"github.com/Debian/dh_make_golang", typeGuess, "golang-github-debian-dh-make-golang"},
-	{"github.com/sean-/seed", typeGuess, "golang-github-sean--seed"},
-	{"git.sr.ht/~sircmpwn/getopt", typeGuess, "golang-sourcehut-sircmpwn-getopt"},
-	{"golang.org/x/term", typeLibrary, "golang-golang-x-term"},
+	{"github.com/Debian/dh-make-golang", typeProgram, "", "dh-make-golang"},
+	{"github.com/Debian/DH-make-golang", typeGuess, "", "golang-github-debian-dh-make-golang"},
+	{"github.com/Debian/dh_make_golang", typeGuess, "", "golang-github-debian-dh-make-golang"},
+	{"github.com/sean-/seed", typeGuess, "", "golang-github-sean--seed"},
+	{"git.sr.ht/~sircmpwn/getopt", typeGuess, "", "golang-sourcehut-sircmpwn-getopt"},
+	{"golang.org/x/term", typeLibrary, "", "golang-golang-x-term"},
+	{"github.com/cli/cli", typeProgram, "gh", "gh"},
 }
 
 func TestDebianNameFromGopkg(t *testing.T) {
 	for _, tt := range nameFromGoPkg {
-		s := debianNameFromGopkg(tt.in, tt.t, false)
+		s := debianNameFromGopkg(tt.in, tt.t, tt.custom, false)
 		if s != tt.out {
 			t.Errorf("debianNameFromGopkg(%q) => %q, want %q", tt.in, s, tt.out)
 		}

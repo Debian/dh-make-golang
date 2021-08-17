@@ -587,10 +587,13 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 // debianNameFromGopkg maps a Go package repo path to a Debian package name,
 // e.g. "golang.org/x/text" → "golang-golang-x-text".
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
-func debianNameFromGopkg(gopkg string, t packageType, allowUnknownHoster bool) string {
+func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool) string {
 	parts := strings.Split(gopkg, "/")
 
 	if t == typeProgram || t == typeProgramLibrary {
+		if customProgPkgName != "" {
+			return normalizeDebianPackageName(customProgPkgName)
+		}
 		return normalizeDebianPackageName(parts[len(parts)-1])
 	}
 
@@ -774,6 +777,13 @@ func execMake(args []string, usage func()) {
 			` * "library+program" (aliases: "lib+prog", "l+p", "both")`+"\n"+
 			` * "program+library" (aliases: "prog+lib", "p+l", "combined")`)
 
+	var customProgPkgName string
+	fs.StringVar(&customProgPkgName,
+		"program_package_name",
+		"",
+		"Override the program package name, and the source package name too\n"+
+			"when appropriate, e.g. to name github.com/cli/cli as \"gh\"")
+
 	var includeUpstreamHistory bool
 	fs.BoolVar(&includeUpstreamHistory,
 		"upstream-git-history",
@@ -821,9 +831,9 @@ func execMake(args []string, usage func()) {
 
 	// Set default source and binary package names.
 	// Note that debsrc may change depending on the actual package type.
-	debsrc := debianNameFromGopkg(gopkg, typeLibrary, allowUnknownHoster)
+	debsrc := debianNameFromGopkg(gopkg, typeLibrary, customProgPkgName, allowUnknownHoster)
 	debLib := debsrc + "-dev"
-	debProg := debianNameFromGopkg(gopkg, typeProgram, allowUnknownHoster)
+	debProg := debianNameFromGopkg(gopkg, typeProgram, customProgPkgName, allowUnknownHoster)
 
 	var pkgType packageType
 
@@ -861,11 +871,13 @@ func execMake(args []string, usage func()) {
 	}
 
 	if pkgType != typeGuess {
-		debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
+		debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 		}
 	}
+	// if pkgType == typeGuess, debsrc (also the output directory) will be
+	// determined later, i.e. after the upstream source has been downloaded.
 
 	if strings.ToLower(gopkg) != gopkg {
 		// Without -git_revision, specifying the package name in the wrong case
@@ -899,7 +911,7 @@ func execMake(args []string, usage func()) {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
 			pkgType = typeProgram
-			debsrc = debianNameFromGopkg(gopkg, pkgType, allowUnknownHoster)
+			debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
 		} else {
 			pkgType = typeLibrary
 		}
@@ -940,7 +952,7 @@ func execMake(args []string, usage func()) {
 	for _, dep := range u.repoDeps {
 		if len(golangBinaries) == 0 {
 			// fall back to heuristic
-			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, allowUnknownHoster)+"-dev")
+			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, "", allowUnknownHoster)+"-dev")
 			continue
 		}
 		bin, ok := golangBinaries[dep]
