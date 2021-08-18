@@ -756,7 +756,7 @@ func execMake(args []string, usage func()) {
 		"pristine-tar",
 		false,
 		"Keep using a pristine-tar branch as in the old workflow.\n"+
-			"Strongly discouraged, see \"pristine-tar considered harmful\"\n"+
+			"Discouraged, see \"pristine-tar considered harmful\"\n"+
 			"https://michael.stapelberg.ch/posts/2018-01-28-pristine-tar/\n"+
 			"and the \"Drop pristine-tar branches\" section at\n"+
 			"https://go-team.pages.debian.net/workflow-changes.html")
@@ -998,7 +998,7 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("    grep -r TODO debian\n")
 	fmt.Printf("\n")
 	fmt.Printf("To build the package, commit the packaging and use gbp buildpackage:\n")
-	fmt.Printf("    git add debian && git commit -a -m 'Initial packaging'\n")
+	fmt.Printf("    git add debian && git commit -S -m 'Initial packaging'\n")
 	fmt.Printf("    gbp buildpackage --git-pbuilder\n")
 	fmt.Printf("\n")
 	fmt.Printf("To create the packaging git repository on salsa, use:\n")
