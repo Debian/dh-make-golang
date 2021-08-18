@@ -763,7 +763,7 @@ func execMake(args []string, usage func()) {
 
 	var forcePrerelease bool
 	fs.BoolVar(&forcePrerelease,
-		"force-prerelease",
+		"force_prerelease",
 		false,
 		"Package @master or @tip instead of the latest tagged version")
 
@@ -786,7 +786,7 @@ func execMake(args []string, usage func()) {
 
 	var includeUpstreamHistory bool
 	fs.BoolVar(&includeUpstreamHistory,
-		"upstream-git-history",
+		"upstream_git_history",
 		true,
 		"Include upstream git history (Debian pkg-go team new workflow).\n"+
 			"New in dh-make-golang 0.3.0, currently experimental.")
@@ -1012,7 +1012,7 @@ func execMake(args []string, usage func()) {
 		fmt.Printf("NOTE: Full upstream git history has been included as per pkg-go team's\n")
 		fmt.Printf("      new workflow.  This feature is new and somewhat experimental,\n")
 		fmt.Printf("      and all feedback are welcome!\n")
-		fmt.Printf("      (For old behavior, use --upstream-git-history=false)\n")
+		fmt.Printf("      (For old behavior, use --upstream_git_history=false)\n")
 		fmt.Printf("\n")
 		fmt.Printf("The upstream git history is being tracked with the remote named %q.\n", u.remote)
 		fmt.Printf("To upgrade to the latest upstream version, you may use something like:\n")
