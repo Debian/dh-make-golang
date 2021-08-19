@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/Debian/dh-make-golang.svg?branch=master)](https://travis-ci.org/Debian/dh-make-golang)
+![CI Test](https://github.com/anthonyfok/dh-make-golang/actions/workflows/ci-test.yml/badge.svg)
 
 dh-make-golang is a tool to automatically create Debian packaging for Go
 packages. Its goal is to automate away as much of the work as possible when
