@@ -31,7 +31,8 @@ func get(gopath, repo string) error {
 	cmd := exec.Command("go", "get", "-d", "-t", repo+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
+		"GO111MODULE=off",
+		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 	return cmd.Run()
 }
@@ -84,7 +85,8 @@ func estimate(importpath string) error {
 	cmd := exec.Command("go", "list", "std")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
+		"GO111MODULE=off",
+		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 
 	out, err := cmd.Output()

@@ -215,7 +215,8 @@ func (u *upstream) findMains(gopath, repo string) error {
 	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Name}}", repo+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
+		"GO111MODULE=off",
+		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -243,7 +244,8 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	cmd := exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
+		"GO111MODULE=off",
+		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 
 	out, err := cmd.Output()
@@ -276,7 +278,8 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	cmd.Dir = filepath.Join(gopath, "src", repo)
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		fmt.Sprintf("GOPATH=%s", gopath),
+		// Not affected by GO111MODULE
+		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 
 	out, err = cmd.Output()
