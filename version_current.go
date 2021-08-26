@@ -17,7 +17,7 @@ var currentVersion = Version{
 	major:      0,
 	minor:      5,
 	patch:      0,
-	preRelease: "",
+	preRelease: "+dev",
 }
 
 func (v Version) String() string {
