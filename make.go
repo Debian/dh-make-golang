@@ -219,9 +219,21 @@ func (u *upstream) findMains(gopath, repo string) error {
 		"GO111MODULE=off",
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
+
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("go list %s (args: %v): %w", repo, cmd.Args, err)
+		log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
+		log.Printf("Retrying without appending \"/...\" to repo")
+		cmd = exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Name}}", repo)
+		cmd.Stderr = os.Stderr
+		cmd.Env = append([]string{
+			"GO111MODULE=off",
+			"GOPATH=" + gopath,
+		}, passthroughEnv()...)
+		out, err = cmd.Output()
+		if err != nil {
+			return fmt.Errorf("%q: %w", cmd.Args, err)
+		}
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if strings.Contains(line, "/vendor/") ||
@@ -251,7 +263,18 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("go list %s (args: %v): %w", repo, cmd.Args, err)
+		log.Println("WARNING: In findDependencies:", fmt.Errorf("%q: %w", cmd.Args, err))
+		log.Printf("Retrying without appending \"/...\" to repo")
+		cmd = exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo)
+		cmd.Stderr = os.Stderr
+		cmd.Env = append([]string{
+			"GO111MODULE=off",
+			"GOPATH=" + gopath,
+		}, passthroughEnv()...)
+		out, err = cmd.Output()
+		if err != nil {
+			return fmt.Errorf("%q: %w", cmd.Args, err)
+		}
 	}
 
 	godependencies := make(map[string]bool)
