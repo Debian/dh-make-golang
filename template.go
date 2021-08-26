@@ -128,6 +128,7 @@ func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debLib)
 	fmt.Fprintf(f, "Architecture: all\n")
+	fmt.Fprintf(f, "Multi-Arch: foreign\n")
 	deps := dependencies
 	sort.Strings(deps)
 	deps = append(deps, "${misc:Depends}")
