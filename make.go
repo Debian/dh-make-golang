@@ -156,7 +156,7 @@ func (u *upstream) tarballFromHoster() error {
 		tarURL = fmt.Sprintf("%s/-/archive/%s/%s-%s.tar.%s",
 			repo, u.tag, project, u.tag, u.compression)
 	default:
-		return fmt.Errorf("unsupported hoster")
+		return fmt.Errorf("unsupported hoster") // Don't change
 	}
 
 	done := make(chan struct{})
@@ -179,17 +179,18 @@ func (u *upstream) tar(gopath, repo string) error {
 	f.Close()
 
 	if u.isRelease {
-		if u.hasGodeps {
-			log.Printf("Godeps/_workspace exists, not downloading tarball from hoster.")
-		} else {
+		if !u.hasGodeps { // No need to repack; fetch pristine tarball
 			u.compression = "gz"
-			err := u.tarballFromHoster()
-			if err != nil && err.Error() == "Unsupported hoster" {
-				log.Printf("INFO: Hoster does not provide release tarball\n")
-			} else {
-				return fmt.Errorf("tarball from hoster: %w", err)
+			if err := u.tarballFromHoster(); err != nil {
+				if err.Error() == "unsupported hoster" {
+					log.Printf("INFO: Hoster does not provide release tarball\n")
+				} else {
+					return fmt.Errorf("tarball from hoster: %w", err)
+				}
 			}
+			return nil
 		}
+		log.Printf("Godeps/_workspace exists, not downloading tarball from hoster.")
 	}
 
 	u.compression = "xz"
