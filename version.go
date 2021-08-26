@@ -20,6 +20,11 @@ var (
 	// from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 	// with leading "v" added.
 	semverRegexp = regexp.MustCompile(`^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
+	// uversionPrereleaseRegexp checks for upstream pre-release
+	// so that '-' can be replaced with '~' in pkgVersionFromGit.
+	// To be kept in sync with the regexp portion of uversionmanglePattern in template.go
+	uversionPrereleaseRegexp = regexp.MustCompile(`(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$`)
 )
 
 // pkgVersionFromGit determines the actual version to be packaged
@@ -66,9 +71,15 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 		}
 
 		u.commitIsh = latestTag
-		u.version = strings.TrimLeftFunc(latestTag, func(r rune) bool {
-			return !unicode.IsNumber(r)
-		})
+
+		// Mangle latestTag into Debian upstream_version
+		// TODO: Move to function and write unit test?
+		u.version = strings.TrimLeftFunc(
+			uversionPrereleaseRegexp.ReplaceAllString(latestTag, "$1~$2$3"),
+			func(r rune) bool {
+				return !unicode.IsNumber(r)
+			},
+		)
 
 		if forcePrerelease {
 			log.Printf("INFO: Force packaging master (prerelease) as requested by user")

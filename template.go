@@ -318,14 +318,14 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 	}
 	defer f.Close()
 
-	filenamemanglePattern := `s%%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%%%s-$1.tar.gz%%`
-	uversionmanglePattern := `s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/\$1~\$2\$3/`
+	filenamemanglePattern := `s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%@PACKAGE@-$1.tar.gz%`
+	uversionmanglePattern := `s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/$1~$2$3/`
 
 	if hasRelease {
 		log.Printf("Setting debian/watch to track release tarball")
-		fmt.Fprintf(f, "version=4\n")
-		fmt.Fprintf(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n", debsrc)
-		fmt.Fprintf(f, `      uversionmangle=`+uversionmanglePattern)
+		fmt.Fprint(f, "version=4\n")
+		fmt.Fprint(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
+		fmt.Fprint(f, `      uversionmangle=`+uversionmanglePattern)
 		if repack {
 			fmt.Fprintf(f, `,\`+"\n")
 			fmt.Fprintf(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
