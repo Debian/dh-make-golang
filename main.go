@@ -26,6 +26,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "\tsearch\t\t\tsearch Debian for already-existing packages\n")
 	fmt.Fprintf(os.Stderr, "\testimate\t\testimate the amount of work for a package\n")
 	fmt.Fprintf(os.Stderr, "\tcreate-salsa-project\tcreate a project for hosting Debian packaging\n")
+	fmt.Fprintf(os.Stderr, "\tclone\t\t\tclone a Go package from Salsa\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "For backwards compatibility, when no command is specified,\nthe make command is executed.\n")
 	fmt.Fprintf(os.Stderr, "\n")
@@ -62,6 +63,8 @@ func main() {
 		execEstimate(args[1:])
 	case "make":
 		execMake(args[1:], nil)
+	case "clone":
+		execClone(args[1:])
 	default:
 		// redirect -help to the global usage
 		execMake(args, usage)
