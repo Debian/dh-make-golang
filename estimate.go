@@ -54,7 +54,7 @@ func removeVendor(gopath string) (found bool, _ error) {
 		}
 		return filepath.SkipDir
 	})
-	return found, fmt.Errorf("walk: %w", err)
+	return found, err
 }
 
 func estimate(importpath string) error {
