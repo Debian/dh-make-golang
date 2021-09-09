@@ -121,7 +121,7 @@ func addDescription(f *os.File, gopkg, comment string) {
 		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
 		longdescription = "TODO: long description"
 	}
-	fmt.Fprintf(f, " %s\n", longdescription)
+	fmt.Fprintln(f, longdescription)
 }
 
 func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) {

@@ -708,7 +708,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 		log.Printf("Could not determine long description for %q: %v\n", gopkg, err)
 		longdescription = "TODO: long description"
 	}
-	fmt.Fprintf(f, " %s\n", longdescription)
+	fmt.Fprintln(f, longdescription)
 
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "TODO: perhaps reasoning\n")

@@ -1,21 +1,45 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
-	"os/exec"
+	"regexp"
 	"strings"
 
-	"github.com/russross/blackfriday"
+	"github.com/charmbracelet/glamour"
 )
 
+//go:embed description.json
+var descriptionJSONBytes []byte
+
+// reformatForControl reformats the wrapped description
+// to conform to Debian’s control format.
 func reformatForControl(raw string) string {
-	// Reformat the wrapped description to conform to Debian’s control format.
-	for strings.Contains(raw, "\n\n") {
-		raw = strings.Replace(raw, "\n\n", "\n.\n", -1)
+	output := ""
+	next_prefix := ""
+	re := regexp.MustCompile(`^ \d+\. `)
+	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
+		// Remove paddings that Glamour currently add to the end of each line
+		line = strings.TrimRight(line, " ")
+
+		prefix := next_prefix
+		if strings.HasPrefix(line, " * ") {
+			prefix = ""
+			next_prefix = "  "
+		}
+		if re.MatchString(line) {
+			prefix = ""
+			next_prefix = "   "
+		}
+		if line == "" {
+			line = "."
+			prefix = ""
+			next_prefix = ""
+		}
+		output += " " + prefix + line + "\n"
 	}
-	return strings.Replace(raw, "\n", "\n ", -1)
+	return output
 }
 
 // getDescriptionForGopkg reads from README.md (or equivalent) from GitHub,
@@ -50,148 +74,15 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 		return reformatForControl(strings.TrimSpace(string(content))), nil
 	}
 
-	output := blackfriday.Markdown([]byte(content), &TextRenderer{}, 0)
-	// Shell out to fmt(1) to line-wrap the output.
-	cmd := exec.Command("fmt")
-	cmd.Stdin = bytes.NewBuffer(output)
-	out, err := cmd.Output()
+	r, _ := glamour.NewTermRenderer(
+		glamour.WithStylesFromJSONBytes(descriptionJSONBytes),
+		// wrap output at specific width
+		glamour.WithWordWrap(72),
+	)
+
+	out, err := r.Render(content)
 	if err != nil {
 		return "", fmt.Errorf("fmt: %w", err)
 	}
 	return reformatForControl(strings.TrimSpace(string(out))), nil
-}
-
-type TextRenderer struct {
-}
-
-func (options *TextRenderer) BlockCode(out *bytes.Buffer, text []byte, lang string) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) BlockQuote(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) BlockHtml(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) Header(out *bytes.Buffer, text func() bool, level int, id string) {
-	text()
-}
-
-func (options *TextRenderer) HRule(out *bytes.Buffer) {
-	out.WriteString("--------------------------------------------------------------------------------\n")
-}
-
-func (options *TextRenderer) List(out *bytes.Buffer, text func() bool, flags int) {
-	text()
-}
-
-func (options *TextRenderer) ListItem(out *bytes.Buffer, text []byte, flags int) {
-	out.WriteString("• ")
-	out.Write(text)
-}
-
-func (options *TextRenderer) Paragraph(out *bytes.Buffer, text func() bool) {
-	out.WriteString("\n")
-	text()
-	out.WriteString("\n")
-}
-
-func (options *TextRenderer) Table(out *bytes.Buffer, header []byte, body []byte, columnData []int) {
-	out.Write(header)
-	out.Write(body)
-}
-
-func (options *TextRenderer) TableRow(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) TableHeaderCell(out *bytes.Buffer, text []byte, flags int) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) TableCell(out *bytes.Buffer, text []byte, flags int) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) Footnotes(out *bytes.Buffer, text func() bool) {
-	text()
-}
-
-func (options *TextRenderer) FootnoteItem(out *bytes.Buffer, name, text []byte, flags int) {
-	out.WriteString("[")
-	out.Write(name)
-	out.WriteString("]")
-	out.Write(text)
-}
-
-func (options *TextRenderer) TitleBlock(out *bytes.Buffer, text []byte) {
-}
-
-// Span-level callbacks
-func (options *TextRenderer) AutoLink(out *bytes.Buffer, link []byte, kind int) {
-	out.Write(link)
-}
-
-func (options *TextRenderer) CodeSpan(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) DoubleEmphasis(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) Emphasis(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) Image(out *bytes.Buffer, link []byte, title []byte, alt []byte) {
-	out.Write(alt)
-}
-
-func (options *TextRenderer) LineBreak(out *bytes.Buffer) {
-	out.WriteString("\n")
-}
-
-func (options *TextRenderer) Link(out *bytes.Buffer, link []byte, title []byte, content []byte) {
-	out.Write(content)
-	out.WriteString(" (")
-	out.Write(link)
-	out.WriteString(")")
-}
-
-func (options *TextRenderer) RawHtmlTag(out *bytes.Buffer, tag []byte) {
-}
-
-func (options *TextRenderer) TripleEmphasis(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) StrikeThrough(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-func (options *TextRenderer) FootnoteRef(out *bytes.Buffer, ref []byte, id int) {
-}
-
-// Low-level callbacks
-func (options *TextRenderer) Entity(out *bytes.Buffer, entity []byte) {
-	out.Write(entity)
-}
-
-func (options *TextRenderer) NormalText(out *bytes.Buffer, text []byte) {
-	out.Write(text)
-}
-
-// Header and footer
-func (options *TextRenderer) DocumentHeader(out *bytes.Buffer) {
-}
-
-func (options *TextRenderer) DocumentFooter(out *bytes.Buffer) {
-}
-
-func (options *TextRenderer) GetFlags() int {
-	return 0
 }
