@@ -31,7 +31,7 @@ func execCreateSalsaProject(args []string) {
 
 	// The source code of the corresponding server can be found at:
 	// https://salsa.debian.org/go-team/infra/pkg-go-tools/-/tree/master/cmd/pgt-api-server
-	u, _ := url.Parse("https://api.go-team.debian.net/v1/createrepo")
+	u, _ := url.Parse("https://pgt-api-server.debian.net/v1/createrepo")
 	q := u.Query()
 	q.Set("repo", projectName)
 	u.RawQuery = q.Encode()
