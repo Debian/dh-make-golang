@@ -19,20 +19,25 @@ func reformatForControl(raw string) string {
 	output := ""
 	next_prefix := ""
 	re := regexp.MustCompile(`^ \d+\. `)
+
 	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
 		// Remove paddings that Glamour currently add to the end of each line
 		line = strings.TrimRight(line, " ")
 
+		// Try to add hanging indent for list items that span over one line
 		prefix := next_prefix
 		if strings.HasPrefix(line, " * ") {
+			// unordered list
 			prefix = ""
 			next_prefix = "  "
 		}
 		if re.MatchString(line) {
+			// ordered list
 			prefix = ""
 			next_prefix = "   "
 		}
 		if line == "" {
+			// blank line, implying end of list
 			line = "."
 			prefix = ""
 			next_prefix = ""
@@ -42,8 +47,24 @@ func reformatForControl(raw string) string {
 	return output
 }
 
+// markdownToLongDescription converts Markdown to plain text
+// and reformat it for expanded description in debian/control.
+func markdownToLongDescription(markdown string) (string, error) {
+	r, _ := glamour.NewTermRenderer(
+		glamour.WithStylesFromJSONBytes(descriptionJSONBytes),
+		glamour.WithWordWrap(72),
+	)
+	out, err := r.Render(markdown)
+	if err != nil {
+		return "", fmt.Errorf("fail to render Markdown: %w", err)
+	}
+	//fmt.Println(out)
+	//fmt.Println(reformatForControl(out))
+	return reformatForControl(out), nil
+}
+
 // getDescriptionForGopkg reads from README.md (or equivalent) from GitHub,
-// intended for the extended description in debian/control.
+// intended for extended description in debian/control.
 func getLongDescriptionForGopkg(gopkg string) (string, error) {
 	owner, repo, err := findGitHubRepo(gopkg)
 	if err != nil {
@@ -71,18 +92,8 @@ func getLongDescriptionForGopkg(gopkg string) (string, error) {
 		!strings.HasSuffix(rr.GetName(), "markdown") &&
 		!strings.HasSuffix(rr.GetName(), "mdown") &&
 		!strings.HasSuffix(rr.GetName(), "mkdn") {
-		return reformatForControl(strings.TrimSpace(string(content))), nil
+		return reformatForControl(content), nil
 	}
 
-	r, _ := glamour.NewTermRenderer(
-		glamour.WithStylesFromJSONBytes(descriptionJSONBytes),
-		// wrap output at specific width
-		glamour.WithWordWrap(72),
-	)
-
-	out, err := r.Render(content)
-	if err != nil {
-		return "", fmt.Errorf("fmt: %w", err)
-	}
-	return reformatForControl(strings.TrimSpace(string(out))), nil
+	return markdownToLongDescription(content)
 }
