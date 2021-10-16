@@ -75,8 +75,8 @@
     "format": "[Image: {{.text}}]"
   },
   "code": {
-    "block_prefix": "`",
-    "block_suffix": "`"
+    "block_prefix": "",
+    "block_suffix": ""
   },
   "code_block": {
     "margin": 2
