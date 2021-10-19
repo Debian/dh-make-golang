@@ -1,6 +1,8 @@
 package main
 
 import (
+	"golang.org/x/mod/modfile"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -75,8 +77,29 @@ func execCheckDepends(args []string) {
 
 // parseGoModDependencies parse ALL dependencies listed in go.mod
 // i.e. it returns the one defined in go.mod as well as the transitively ones
+// TODO: this may not be the best way of doing thing since it requires the package to be converted to go module
 func parseGoModDependencies(directory string) ([]dependency, error) {
-	return nil, nil
+	b, err := ioutil.ReadFile(filepath.Join(directory, "go.mod"))
+	if err != nil {
+		return nil, err
+	}
+
+	modFile, err := modfile.Parse("go.mod", b, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var dependencies []dependency
+	for _, require := range modFile.Require {
+		if !require.Indirect {
+			dependencies = append(dependencies, dependency{
+				importPath:  require.Mod.Path,
+				packageName: debianNameFromGopkg(require.Mod.Path, typeLibrary, "", true) + "-dev",
+			})
+		}
+	}
+
+	return dependencies, nil
 }
 
 // parsePackageDependencies parse the Build-Depends defined in d/control
