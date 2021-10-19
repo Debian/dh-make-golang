@@ -47,6 +47,11 @@ func execCheckDepends(args []string) {
 	for _, goModDep := range goModDepds {
 		found := false
 
+		if goModDep.packageName == "" {
+			fmt.Printf("NEW dependency %s is NOT yet packaged in Debian\n", goModDep.importPath)
+			continue
+		}
+
 		for _, packageDep := range packageDeps {
 			if packageDep.packageName == goModDep.packageName {
 				found = true
@@ -99,14 +104,16 @@ func parseGoModDependencies(directory string, goBinaries map[string]string) ([]d
 	var dependencies []dependency
 	for _, require := range modFile.Require {
 		if !require.Indirect {
+			packageName := ""
+
 			if val, exists := goBinaries[require.Mod.Path]; exists {
-				dependencies = append(dependencies, dependency{
-					importPath:  require.Mod.Path,
-					packageName: val,
-				})
-			} else {
-				return nil, fmt.Errorf("%s is not packaged in Debian", require.Mod.Path)
+				packageName = val
 			}
+
+			dependencies = append(dependencies, dependency{
+				importPath:  require.Mod.Path,
+				packageName: packageName,
+			})
 		}
 	}
 
@@ -121,21 +128,12 @@ func parseDebianControlDependencies(directory string) ([]dependency, error) {
 	}
 
 	var dependencies []dependency
-	baseBuildDepends := getBaseBuildDepends()
 
 	for _, bp := range ctrl.Source.BuildDepends.GetAllPossibilities() {
 		packageName := strings.Trim(bp.Name, "\n")
 
-		isBase := false
-		for _, baseBuildDepend := range baseBuildDepends {
-			if baseBuildDepend == packageName {
-				isBase = true
-				break
-			}
-		}
-
-		// Skip base build depends
-		if isBase {
+		// Ignore non -dev dependencies (i.e, debhelper-compat, git, cmake, etc...)
+		if !strings.HasSuffix(packageName, "-dev") {
 			continue
 		}
 
@@ -146,11 +144,4 @@ func parseDebianControlDependencies(directory string) ([]dependency, error) {
 	}
 
 	return dependencies, nil
-}
-
-// getBaseBuildDepends returns the list of dependencies that are non Go package
-// i.e. debhelper-compat, dh-golang, golang-any and friends.
-// TODO: is there a better way?
-func getBaseBuildDepends() []string {
-	return []string{"debhelper-compat", "dh-golang", "golang-any"}
 }
