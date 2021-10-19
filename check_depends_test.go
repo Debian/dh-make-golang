@@ -8,9 +8,8 @@ import (
 	"testing"
 )
 
-func TestParsePackageDependencies(t *testing.T) {
-	f := `
-Source: terminews
+func TestParseDebianControlDependencies(t *testing.T) {
+	f := `Source: terminews
 Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>
 Uploaders:
  Aloïs Micard <alois@micard.lu>,
@@ -57,9 +56,9 @@ Description: read your RSS feeds from your terminal
 		t.Fatalf("Could not create dummy Debian package: %v", err)
 	}
 
-	deps, err := parsePackageDependencies(filepath.Join(tmpDir, "dummy-package"))
+	deps, err := parseDebianControlDependencies(filepath.Join(tmpDir, "dummy-package"))
 	if err != nil {
-		t.Fatalf("Could not parse Debian packag dependencies: %v", err)
+		t.Fatalf("Could not parse Debian package dependencies: %v", err)
 
 	}
 
@@ -82,6 +81,54 @@ Description: read your RSS feeds from your terminal
 		{
 			importPath:  "",
 			packageName: "golang-github-mmcdole-gofeed-dev",
+		},
+	}
+
+	if !reflect.DeepEqual(deps, want) {
+		t.Fatalf("Wrong dependencies returned (got %v want %v)", deps, want)
+	}
+}
+
+func TestParseGoModDependencies(t *testing.T) {
+	f := `module github.com/Debian/dh-make-golang
+
+go 1.16
+
+require (
+	github.com/charmbracelet/glamour v0.3.0
+	github.com/google/go-github/v38 v38.1.0
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+)`
+	tmpDir, err := ioutil.TempDir("", "dh-make-golang")
+	if err != nil {
+		t.Fatalf("Could not create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := os.MkdirAll(filepath.Join(tmpDir, "dummy-package"), 0750); err != nil {
+		t.Fatalf("Could not create dummy Debian package: %v", err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(tmpDir, "dummy-package", "go.mod"), []byte(f), 0640); err != nil {
+		t.Fatalf("Could not create dummy Debian package: %v", err)
+	}
+
+	deps, err := parseGoModDependencies(filepath.Join(tmpDir, "dummy-package"))
+	if err != nil {
+		t.Fatalf("Could not parse go.mod dependencies: %v", err)
+
+	}
+
+	want := []dependency{
+		{
+			importPath:  "github.com/charmbracelet/glamour",
+			packageName: "golang-github-charmbracelet-glamour-dev",
+		},
+		{
+			importPath:  "github.com/google/go-github/v38",
+			packageName: "golang-github-google-go-github-v38-dev",
+		}, {
+			importPath:  "github.com/gregjones/httpcache",
+			packageName: "golang-github-gregjones-httpcache-dev",
 		},
 	}
 

@@ -30,7 +30,7 @@ func execCheckDepends(args []string) {
 	}
 
 	// Load the dependencies defined in the Debian packaging (d/control)
-	packageDeps, err := parsePackageDependencies(cwd)
+	packageDeps, err := parseDebianControlDependencies(cwd)
 	if err != nil {
 		log.Fatalf("error while parsing d/control: %s", err)
 	}
@@ -103,8 +103,8 @@ func parseGoModDependencies(directory string) ([]dependency, error) {
 	return dependencies, nil
 }
 
-// parsePackageDependencies parse the Build-Depends defined in d/control
-func parsePackageDependencies(directory string) ([]dependency, error) {
+// parseDebianControlDependencies parse the Build-Depends defined in d/control
+func parseDebianControlDependencies(directory string) ([]dependency, error) {
 	ctrl, err := control.ParseControlFile(filepath.Join(directory, "debian", "control"))
 	if err != nil {
 		return nil, err
