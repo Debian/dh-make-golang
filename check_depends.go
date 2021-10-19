@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"golang.org/x/mod/modfile"
 	"io/ioutil"
 	"log"
@@ -49,7 +50,7 @@ func execCheckDepends(args []string) {
 
 		if !found {
 			hasChanged = true
-			log.Printf("NEW dependency %s (%s)", goModDep.importPath, goModDep.packageName)
+			fmt.Printf("NEW dependency %s (%s)", goModDep.importPath, goModDep.packageName)
 		}
 	}
 
@@ -66,12 +67,12 @@ func execCheckDepends(args []string) {
 
 		if !found {
 			hasChanged = true
-			log.Printf("RM dependency %s (%s)", packageDep.importPath, packageDep.packageName)
+			fmt.Printf("RM dependency %s (%s)", packageDep.importPath, packageDep.packageName)
 		}
 	}
 
 	if !hasChanged {
-		log.Printf("go.mod and d/control are in sync")
+		fmt.Printf("go.mod and d/control are in sync")
 	}
 }
 
