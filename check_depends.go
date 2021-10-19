@@ -2,6 +2,10 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
+	"pault.ag/go/debian/control"
+	"strings"
 )
 
 type dependency struct {
@@ -11,14 +15,19 @@ type dependency struct {
 }
 
 func execCheckDepends(args []string) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("error while getting current directory: %s", err)
+	}
+
 	// Load the dependencies defined in the Go module (go.mod)
-	goModDepds, err := parseGoModDependencies()
+	goModDepds, err := parseGoModDependencies(cwd)
 	if err != nil {
 		log.Fatalf("error while parsing go.mod: %s", err)
 	}
 
 	// Load the dependencies defined in the Debian packaging (d/control)
-	packageDeps, err := parsePackageDependencies()
+	packageDeps, err := parsePackageDependencies(cwd)
 	if err != nil {
 		log.Fatalf("error while parsing d/control: %s", err)
 	}
@@ -66,11 +75,48 @@ func execCheckDepends(args []string) {
 
 // parseGoModDependencies parse ALL dependencies listed in go.mod
 // i.e. it returns the one defined in go.mod as well as the transitively ones
-func parseGoModDependencies() ([]dependency, error) {
+func parseGoModDependencies(directory string) ([]dependency, error) {
 	return nil, nil
 }
 
 // parsePackageDependencies parse the Build-Depends defined in d/control
-func parsePackageDependencies() ([]dependency, error) {
-	return nil, nil
+func parsePackageDependencies(directory string) ([]dependency, error) {
+	ctrl, err := control.ParseControlFile(filepath.Join(directory, "debian", "control"))
+	if err != nil {
+		return nil, err
+	}
+
+	var dependencies []dependency
+	baseBuildDepends := getBaseBuildDepends()
+
+	for _, bp := range ctrl.Source.BuildDepends.GetAllPossibilities() {
+		packageName := strings.Trim(bp.Name, "\n")
+
+		isBase := false
+		for _, baseBuildDepend := range baseBuildDepends {
+			if baseBuildDepend == packageName {
+				isBase = true
+				break
+			}
+		}
+
+		// Skip base build depends
+		if isBase {
+			continue
+		}
+
+		dependencies = append(dependencies, dependency{
+			importPath:  "", // TODO XS-Go-Import-Path?
+			packageName: packageName,
+		})
+	}
+
+	return dependencies, nil
+}
+
+// getBaseBuildDepends returns the list of dependencies that are non Go package
+// i.e. debhelper-compat, dh-golang, golang-any and friends.
+// TODO: is there a better way?
+func getBaseBuildDepends() []string {
+	return []string{"debhelper-compat", "dh-golang", "golang-any"}
 }
