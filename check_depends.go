@@ -23,8 +23,14 @@ func execCheckDepends(args []string) {
 		log.Fatalf("error while getting current directory: %s", err)
 	}
 
+	// Load the already packaged Go modules
+	golangBinaries, err := getGolangBinaries()
+	if err != nil {
+		log.Fatalf("error while getting packaged Go modules: %s", err)
+	}
+
 	// Load the dependencies defined in the Go module (go.mod)
-	goModDepds, err := parseGoModDependencies(cwd)
+	goModDepds, err := parseGoModDependencies(cwd, golangBinaries)
 	if err != nil {
 		log.Fatalf("error while parsing go.mod: %s", err)
 	}
@@ -50,7 +56,7 @@ func execCheckDepends(args []string) {
 
 		if !found {
 			hasChanged = true
-			fmt.Printf("NEW dependency %s (%s)", goModDep.importPath, goModDep.packageName)
+			fmt.Printf("NEW dependency %s (%s)\n", goModDep.importPath, goModDep.packageName)
 		}
 	}
 
@@ -67,19 +73,19 @@ func execCheckDepends(args []string) {
 
 		if !found {
 			hasChanged = true
-			fmt.Printf("RM dependency %s (%s)", packageDep.importPath, packageDep.packageName)
+			fmt.Printf("RM dependency %s (%s)\n", packageDep.importPath, packageDep.packageName)
 		}
 	}
 
 	if !hasChanged {
-		fmt.Printf("go.mod and d/control are in sync")
+		fmt.Printf("go.mod and d/control are in sync\n")
 	}
 }
 
 // parseGoModDependencies parse ALL dependencies listed in go.mod
 // i.e. it returns the one defined in go.mod as well as the transitively ones
 // TODO: this may not be the best way of doing thing since it requires the package to be converted to go module
-func parseGoModDependencies(directory string) ([]dependency, error) {
+func parseGoModDependencies(directory string, goBinaries map[string]string) ([]dependency, error) {
 	b, err := ioutil.ReadFile(filepath.Join(directory, "go.mod"))
 	if err != nil {
 		return nil, err
@@ -93,10 +99,14 @@ func parseGoModDependencies(directory string) ([]dependency, error) {
 	var dependencies []dependency
 	for _, require := range modFile.Require {
 		if !require.Indirect {
-			dependencies = append(dependencies, dependency{
-				importPath:  require.Mod.Path,
-				packageName: debianNameFromGopkg(require.Mod.Path, typeLibrary, "", true) + "-dev",
-			})
+			if val, exists := goBinaries[require.Mod.Path]; exists {
+				dependencies = append(dependencies, dependency{
+					importPath:  require.Mod.Path,
+					packageName: val,
+				})
+			} else {
+				return nil, fmt.Errorf("%s is not packaged in Debian", require.Mod.Path)
+			}
 		}
 	}
 
