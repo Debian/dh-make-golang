@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/vcs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -106,12 +107,19 @@ func parseGoModDependencies(directory string, goBinaries map[string]string) ([]d
 		if !require.Indirect {
 			packageName := ""
 
-			if val, exists := goBinaries[require.Mod.Path]; exists {
+			// Translate all packages to the root of their repository
+			rr, err := vcs.RepoRootForImportPath(require.Mod.Path, false)
+			if err != nil {
+				log.Printf("Could not determine repo path for import path %q: %v\n", require.Mod.Path, err)
+				continue
+			}
+
+			if val, exists := goBinaries[rr.Root]; exists {
 				packageName = val
 			}
 
 			dependencies = append(dependencies, dependency{
-				importPath:  require.Mod.Path,
+				importPath:  rr.Root,
 				packageName: packageName,
 			})
 		}

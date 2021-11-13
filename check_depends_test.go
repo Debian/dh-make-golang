@@ -114,7 +114,7 @@ require (
 
 	deps, err := parseGoModDependencies(filepath.Join(tmpDir, "dummy-package"), map[string]string{
 		"github.com/charmbracelet/glamour": "golang-github-charmbracelet-glamour-dev",
-		"github.com/google/go-github/v38":  "golang-github-google-go-github-dev",
+		"github.com/google/go-github":  "golang-github-google-go-github-dev",
 		"github.com/gregjones/httpcache":   "golang-github-gregjones-httpcache-dev",
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ require (
 			packageName: "golang-github-charmbracelet-glamour-dev",
 		},
 		{
-			importPath:  "github.com/google/go-github/v38",
+			importPath:  "github.com/google/go-github",
 			packageName: "golang-github-google-go-github-dev",
 		}, {
 			importPath:  "github.com/gregjones/httpcache",
