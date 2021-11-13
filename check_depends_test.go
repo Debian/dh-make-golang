@@ -114,7 +114,7 @@ require (
 
 	deps, err := parseGoModDependencies(filepath.Join(tmpDir, "dummy-package"), map[string]string{
 		"github.com/charmbracelet/glamour": "golang-github-charmbracelet-glamour-dev",
-		"github.com/google/go-github":  "golang-github-google-go-github-dev",
+		"github.com/google/go-github":      "golang-github-google-go-github-dev",
 		"github.com/gregjones/httpcache":   "golang-github-gregjones-httpcache-dev",
 	})
 	if err != nil {
