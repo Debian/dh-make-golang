@@ -33,6 +33,9 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 		return fmt.Errorf("mkdir debian/source/: %w", err)
 	}
 
+	if err := writeDebianGitIgnore(dir, debLib, debProg, pkgType); err != nil {
+		return fmt.Errorf("write debian/.gitignore: %w", err)
+	}
 	if err := writeDebianChangelog(dir, debsrc, debversion); err != nil {
 		return fmt.Errorf("write changelog: %w", err)
 	}
@@ -67,6 +70,37 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 
 	if err := writeDebianGitLabCI(dir); err != nil {
 		return fmt.Errorf("write GitLab CI: %w", err)
+	}
+
+	return nil
+}
+
+func writeDebianGitIgnore(dir, debLib, debProg string, pkgType packageType) error {
+	f, err := os.Create(filepath.Join(dir, "debian", ".gitignore"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	fmt.Fprintf(f, "*.debhelper\n")
+	fmt.Fprintf(f, "*.log\n")
+	fmt.Fprintf(f, "*.substvars\n")
+	fmt.Fprintf(f, "/.debhelper/\n")
+	fmt.Fprintf(f, "/debhelper-build-stamp\n")
+	fmt.Fprintf(f, "/files\n")
+
+	switch pkgType {
+	case typeLibrary:
+		fmt.Fprintf(f, "/%s/\n", debLib)
+	case typeProgram:
+		fmt.Fprintf(f, "/%s/\n", debProg)
+	case typeLibraryProgram:
+		fallthrough
+	case typeProgramLibrary:
+		fmt.Fprintf(f, "/%s/\n", debLib)
+		fmt.Fprintf(f, "/%s/\n", debProg)
+	default:
+		log.Fatalf("Invalid pkgType %d in writeDebianGitIgnore(), aborting", pkgType)
 	}
 
 	return nil
