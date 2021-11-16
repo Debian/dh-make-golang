@@ -18,7 +18,7 @@ Testsuite: autopkgtest-pkg-go
 Priority: optional
 Build-Depends:
  debhelper-compat (= 13),
- dh-golang,
+ dh-sequence-golang,
  golang-any,
  golang-github-advancedlogic-goose-dev,
  golang-github-fatih-color-dev,

@@ -164,7 +164,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 
 	builddeps := append([]string{
 		"debhelper-compat (= 13)",
-		"dh-golang",
+		"dh-sequence-golang",
 		"golang-any"},
 		dependencies...)
 	sort.Strings(builddeps)
@@ -264,7 +264,7 @@ func writeDebianRules(dir string, pkgType packageType) error {
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
-	fmt.Fprintf(f, "\tdh $@ --builddirectory=_build --buildsystem=golang --with=golang\n")
+	fmt.Fprintf(f, "\tdh $@ --builddirectory=_build --buildsystem=golang\n")
 	if pkgType == typeProgram {
 		fmt.Fprintf(f, "\n")
 		fmt.Fprintf(f, "override_dh_auto_install:\n")
