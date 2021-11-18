@@ -339,35 +339,35 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 		fmt.Fprint(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
 		fmt.Fprint(f, `      uversionmangle=`+uversionmanglePattern)
 		if repack {
-			fmt.Fprintf(f, `,\`+"\n")
-			fmt.Fprintf(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `,\`+"\n")
+			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
 		}
-		fmt.Fprintf(f, `" \`+"\n")
+		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
 	} else {
 		log.Printf("Setting debian/watch to track git HEAD")
-		fmt.Fprintf(f, "version=4\n")
-		fmt.Fprintf(f, `opts="mode=git, pgpmode=none`)
+		fmt.Fprint(f, "version=4\n")
+		fmt.Fprint(f, `opts="mode=git, pgpmode=none`)
 		if repack {
-			fmt.Fprintf(f, `,\`+"\n")
-			fmt.Fprintf(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `,\`+"\n")
+			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
 		}
-		fmt.Fprintf(f, `" \`+"\n")
+		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
-		fmt.Fprintf(f, "  HEAD debian\n")
+		fmt.Fprint(f, "  HEAD debian\n")
 
 		// Anticipate that upstream would eventually switch to tagged releases
-		fmt.Fprintf(f, "\n")
-		fmt.Fprintf(f, "# Use the following when upstream starts to tag releases:\n")
-		fmt.Fprintf(f, "#\n")
-		fmt.Fprintf(f, "#version=4\n")
-		fmt.Fprintf(f, `#opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n", debsrc)
-		fmt.Fprintf(f, `#      uversionmangle=`+uversionmanglePattern)
+		fmt.Fprint(f, "\n")
+		fmt.Fprint(f, "# Use the following when upstream starts to tag releases:\n")
+		fmt.Fprint(f, "#\n")
+		fmt.Fprint(f, "#version=4\n")
+		fmt.Fprint(f, `#opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
+		fmt.Fprint(f, `#      uversionmangle=`+uversionmanglePattern)
 		if repack {
-			fmt.Fprintf(f, `,\`+"\n")
-			fmt.Fprintf(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `,\`+"\n")
+			fmt.Fprint(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
 		}
-		fmt.Fprintf(f, `" \`+"\n")
+		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
 	}
 
