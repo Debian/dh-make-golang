@@ -173,6 +173,7 @@ func addLibraryPackage(f *os.File, gopkg, debLib string, dependencies []string) 
 func addProgramPackage(f *os.File, gopkg, debProg string) {
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "Package: %s\n", debProg)
+	fmt.Fprintf(f, "Section: TODO\n")
 	fmt.Fprintf(f, "Architecture: any\n")
 	deps := []string{"${misc:Depends}", "${shlibs:Depends}"}
 	fprintfControlField(f, "Depends", deps)
