@@ -190,11 +190,11 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	// Source package:
 
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
+	fmt.Fprintf(f, "Section: golang\n")
+	fmt.Fprintf(f, "Priority: optional\n")
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
-	fmt.Fprintf(f, "Section: golang\n")
-	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
-	fmt.Fprintf(f, "Priority: optional\n")
+	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
 
 	builddeps := append([]string{
 		"debhelper-compat (= 13)",
@@ -204,11 +204,11 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	sort.Strings(builddeps)
 	fprintfControlField(f, "Build-Depends", builddeps)
 
+	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
 	fmt.Fprintf(f, "Standards-Version: 4.6.0\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
-	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
 	fmt.Fprintf(f, "XS-Go-Import-Path: %s\n", gopkg)
 
 	// Binary package(s):
@@ -259,9 +259,9 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 	}
 
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
+	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
 	fmt.Fprintf(f, "Upstream-Contact: TODO\n")
-	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
 	if len(vendorDirs) > 0 || hasGodeps {
 		fmt.Fprintf(f, "Files-Excluded:\n")
 		for _, dir := range vendorDirs {
