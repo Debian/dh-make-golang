@@ -596,6 +596,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"honnef.co":            "honnef",
 		"howett.net":           "howett",
 		"k8s.io":               "k8s",
+		"modernc.org":          "modernc",
 		"pault.ag":             "pault",
 		"rsc.io":               "rsc",
 		"salsa.debian.org":     "debian",
