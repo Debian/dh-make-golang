@@ -485,6 +485,9 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		if err != nil {
 			return dir, fmt.Errorf("unable to fetch upstream history: %q", err)
 		}
+		if u.remote == "debian" {
+			u.remote = "salsa"
+		}
 		log.Printf("Adding remote %q with URL %q\n", u.remote, u.rr.Repo)
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
 			return dir, fmt.Errorf("git remote add %s %s: %w", u.remote, u.rr.Repo, err)
