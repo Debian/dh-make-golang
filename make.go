@@ -150,7 +150,7 @@ func (u *upstream) tarballFromHoster() error {
 	case "github.com":
 		tarURL = fmt.Sprintf("%s/archive/%s.tar.%s",
 			repo, u.tag, u.compression)
-	case "gitlab.com":
+	case "gitlab.com", "salsa.debian.org":
 		parts := strings.Split(repoU.Path, "/")
 		if len(parts) < 3 {
 			return fmt.Errorf("incomplete repo URL: %s", u.rr.Repo)
