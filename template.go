@@ -206,7 +206,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fprintfControlField(f, "Build-Depends", builddeps)
 
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
-	fmt.Fprintf(f, "Standards-Version: 4.6.0\n")
+	fmt.Fprintf(f, "Standards-Version: 4.6.1\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
