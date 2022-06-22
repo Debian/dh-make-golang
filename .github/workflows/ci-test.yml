@@ -4,26 +4,26 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   ci-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip ci]')"
     strategy:
       matrix:
-        go-version: ['1.16.x', '1.17.x']
+        go-version: ['1.16.x', '1.17.x', '1.18.x']
     env:
       GO111MODULE: on  # Needed for github.com/google/go-github/v38
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go-version }}
 
       - run: diff -u <(echo -n) <(gofmt -d -s .)
 
-      - run: go get -t -v ./...
+      - run: go install -v ./...
 
       - run: go test -v ./...
 
@@ -32,7 +32,7 @@ jobs:
       - name: apt install needed Debian packages
         run: |
           sudo eatmydata apt update
-          sudo eatmydata apt install git-buildpackage golang-any pristine-tar pandoc
+          sudo eatmydata apt install git-buildpackage pristine-tar pandoc
 
       - name: Generate man page from Markdown
         run: pandoc -f markdown -t man -s dh-make-golang.md -o dh-make-golang.1
@@ -46,7 +46,7 @@ jobs:
           ~/go/bin/dh-make-golang -type p -pristine-tar -program_package_name gh github.com/cli/cli
 
       - name: Upload dh-make-golang test run as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: dh-make-golang_test-run_go${{ matrix.go-version }}
           path: _test-run
