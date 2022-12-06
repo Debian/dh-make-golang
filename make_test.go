@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"golang.org/x/tools/go/vcs"
 )
 
 var shortName = []struct {
@@ -64,6 +66,33 @@ func TestDebianNameFromGopkg(t *testing.T) {
 		s := debianNameFromGopkg(tt.in, tt.t, tt.custom, false)
 		if s != tt.out {
 			t.Errorf("debianNameFromGopkg(%q) => %q, want %q", tt.in, s, tt.out)
+		}
+	}
+}
+
+var tarballUrl = []struct {
+	repoRoot    string
+	tag         string
+	compression string
+	url         string
+}{
+	{"https://github.com/Debian/dh-make-golang", "0.6.0", "gz", "https://github.com/Debian/dh-make-golang/archive/0.6.0.tar.gz"},
+	{"https://github.com/Debian/dh-make-golang.git", "0.6.0", "gz", "https://github.com/Debian/dh-make-golang/archive/0.6.0.tar.gz"},
+	{"https://gitlab.com/gitlab-org/labkit", "1.3.0", "gz", "https://gitlab.com/gitlab-org/labkit/-/archive/1.3.0/labkit-1.3.0.tar.gz"},
+	{"https://git.sr.ht/~sircmpwn/getopt", "v1.0.0", "gz", "https://git.sr.ht/~sircmpwn/getopt/archive/v1.0.0.tar.gz"},
+}
+
+func TestUpstreamTarmballUrl(t *testing.T) {
+	for _, tt := range tarballUrl {
+		u := upstream{
+			rr:          &vcs.RepoRoot{Repo: tt.repoRoot},
+			compression: tt.compression,
+			tag:         tt.tag,
+		}
+
+		url, _ := u.tarballUrl()
+		if url != tt.url {
+			t.Errorf("TestUpstreamTarmballUrl(%q) => %q, want %q", tt.repoRoot, url, tt.url)
 		}
 	}
 }

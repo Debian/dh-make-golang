@@ -138,28 +138,37 @@ func (u *upstream) get(gopath, repo, rev string) error {
 	return rr.VCS.Create(dir, rr.Repo)
 }
 
-func (u *upstream) tarballFromHoster() error {
-	var tarURL string
+func (u *upstream) tarballUrl() (string, error) {
 	repo := strings.TrimSuffix(u.rr.Repo, ".git")
 	repoU, err := url.Parse(repo)
 	if err != nil {
-		return fmt.Errorf("parse URL: %w", err)
+		return "", fmt.Errorf("parse URL: %w", err)
 	}
 
 	switch repoU.Host {
 	case "github.com":
-		tarURL = fmt.Sprintf("%s/archive/%s.tar.%s",
-			repo, u.tag, u.compression)
+		return fmt.Sprintf("%s/archive/%s.tar.%s",
+			repo, u.tag, u.compression), nil
 	case "gitlab.com", "salsa.debian.org":
 		parts := strings.Split(repoU.Path, "/")
 		if len(parts) < 3 {
-			return fmt.Errorf("incomplete repo URL: %s", u.rr.Repo)
+			return "", fmt.Errorf("incomplete repo URL: %s", u.rr.Repo)
 		}
 		project := parts[2]
-		tarURL = fmt.Sprintf("%s/-/archive/%s/%s-%s.tar.%s",
-			repo, u.tag, project, u.tag, u.compression)
+		return fmt.Sprintf("%s/-/archive/%s/%s-%s.tar.%s",
+			repo, u.tag, project, u.tag, u.compression), nil
+	case "git.sr.ht":
+		return fmt.Sprintf("%s/archive/%s.tar.%s",
+			repo, u.tag, u.compression), nil
 	default:
-		return errUnsupportedHoster
+		return "", errUnsupportedHoster
+	}
+}
+
+func (u *upstream) tarballFromHoster() error {
+	tarURL, err := u.tarballUrl()
+	if err != nil {
+		return err
 	}
 
 	done := make(chan struct{})
