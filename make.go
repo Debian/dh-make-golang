@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -742,6 +743,44 @@ func copyFile(src, dest string) error {
 	return output.Close()
 }
 
+func isCommandAvailable(name string) bool {
+	cmd := exec.Command("which", name)
+	err := cmd.Run()
+	return err == nil
+}
+
+func checkWnppProceedPrompt() {
+	fmt.Fprint(os.Stderr, "Would you like to proceed? (Y/n): ")
+	r := bufio.NewReader(os.Stdin)
+	input, err := r.ReadString('\n')
+	if err != nil {
+		log.Fatalf("error occurred while reading input: %v\n", err)
+	}
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "y", "yes":
+		fmt.Fprintf(os.Stderr, "Yes recieved, proceeding\n")
+	case "n", "no":
+		log.Fatalf("No recieved, exiting")
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown response recieved\n")
+		checkWnppProceedPrompt()
+	}
+}
+
+func checkWnpp(name string) {
+	if isCommandAvailable("wnpp-check") {
+		cmd := exec.Command("wnpp-check", name)
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "The following wnpp bug entries were found for \"%s\":\n%s", name, out)
+			checkWnppProceedPrompt()
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "Could not find wnpp-check, skipping\n")
+	}
+}
+
 func execMake(args []string, usage func()) {
 	fs := flag.NewFlagSet("make", flag.ExitOnError)
 	if usage != nil {
@@ -928,6 +967,9 @@ func execMake(args []string, usage func()) {
 		log.Printf("WARNING: Go package names are case-sensitive. Did you really mean %q instead of %q?\n",
 			gopkg, strings.ToLower(gopkg))
 	}
+
+	// Check if wnpp bug exists (using wnpp-check from devscripts)
+	checkWnpp(debsrc)
 
 	var (
 		eg             errgroup.Group
