@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,14 +21,14 @@ func TestSnapshotVersion(t *testing.T) {
 	os.Setenv("TZ", "UTC")
 	defer os.Unsetenv("TZ")
 
-	tempdir, err := ioutil.TempDir("", "dh-make-golang")
+	tempdir, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		t.Fatalf("Could not create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempdir)
 
 	tempfile := filepath.Join(tempdir, "test")
-	if err := ioutil.WriteFile(tempfile, []byte("testcase"), 0644); err != nil {
+	if err := os.WriteFile(tempfile, []byte("testcase"), 0644); err != nil {
 		t.Fatalf("Could not write temp file %q: %v", tempfile, err)
 	}
 
@@ -64,7 +63,7 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Logf("got %q, want %q", got, want)
 	}
 
-	if err := ioutil.WriteFile(tempfile, []byte("testcase 2"), 0644); err != nil {
+	if err := os.WriteFile(tempfile, []byte("testcase 2"), 0644); err != nil {
 		t.Fatalf("Could not write temp file %q: %v", tempfile, err)
 	}
 
@@ -84,7 +83,7 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Logf("got %q, want %q", got, want)
 	}
 
-	if err := ioutil.WriteFile(tempfile, []byte("testcase 3"), 0644); err != nil {
+	if err := os.WriteFile(tempfile, []byte("testcase 3"), 0644); err != nil {
 		t.Fatalf("Could not write temp file %q: %v", tempfile, err)
 	}
 

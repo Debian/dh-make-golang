@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -41,7 +41,7 @@ func execCreateSalsaProject(args []string) {
 		log.Fatalf("http post: %s", err)
 	}
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
-		b, _ := ioutil.ReadAll(resp.Body)
+		b, _ := io.ReadAll(resp.Body)
 		log.Fatalf("unexpected HTTP status code: got %d, want %d (response: %s)", got, want, string(b))
 	}
 }

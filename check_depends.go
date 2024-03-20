@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/tools/go/vcs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"pault.ag/go/debian/control"
 	"strings"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/vcs"
+	"pault.ag/go/debian/control"
 )
 
 type dependency struct {
@@ -92,7 +92,7 @@ func execCheckDepends(args []string) {
 // i.e. it returns the one defined in go.mod as well as the transitively ones
 // TODO: this may not be the best way of doing thing since it requires the package to be converted to go module
 func parseGoModDependencies(directory string, goBinaries map[string]string) ([]dependency, error) {
-	b, err := ioutil.ReadFile(filepath.Join(directory, "go.mod"))
+	b, err := os.ReadFile(filepath.Join(directory, "go.mod"))
 	if err != nil {
 		return nil, err
 	}

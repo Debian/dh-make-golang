@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -59,7 +58,7 @@ func removeVendor(gopath string) (found bool, _ error) {
 
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
-	gopath, err := ioutil.TempDir("", "dh-make-golang")
+	gopath, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}

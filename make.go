@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -174,7 +173,7 @@ func (u *upstream) tarballFromHoster() error {
 }
 
 func (u *upstream) tar(gopath, repo string) error {
-	f, err := ioutil.TempFile("", "dh-make-golang")
+	f, err := os.CreateTemp("", "dh-make-golang")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
@@ -339,7 +338,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 }
 
 func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*upstream, error) {
-	gopath, err := ioutil.TempDir("", "dh-make-golang")
+	gopath, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		return nil, fmt.Errorf("create tmp dir: %w", err)
 	}
@@ -656,7 +655,7 @@ func getDebianEmail() string {
 	if email := strings.TrimSpace(os.Getenv("DEBEMAIL")); email != "" {
 		return email
 	}
-	mailname, err := ioutil.ReadFile("/etc/mailname")
+	mailname, err := os.ReadFile("/etc/mailname")
 	// By default, /etc/mailname contains "debian" which is not useful; check for ".".
 	if err == nil && strings.Contains(string(mailname), ".") {
 		if u, err := user.Current(); err == nil && u.Username != "" {
