@@ -215,7 +215,7 @@ func (u *upstream) tar(gopath, repo string) error {
 // findMains finds main packages within the repo (useful to auto-detect the
 // package type).
 func (u *upstream) findMains(gopath, repo string) error {
-	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Name}}", repo+"/...")
+	cmd := exec.Command("go", "list", "-e", "-f", "{{.ImportPath}} {{.Name}}", repo+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		"GO111MODULE=off",
@@ -226,7 +226,7 @@ func (u *upstream) findMains(gopath, repo string) error {
 	if err != nil {
 		log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
 		log.Printf("Retrying without appending \"/...\" to repo")
-		cmd = exec.Command("go", "list", "-f", "{{.ImportPath}} {{.Name}}", repo)
+		cmd = exec.Command("go", "list", "-e", "-f", "{{.ImportPath}} {{.Name}}", repo)
 		cmd.Stderr = os.Stderr
 		cmd.Env = append([]string{
 			"GO111MODULE=off",
@@ -256,7 +256,7 @@ func (u *upstream) findMains(gopath, repo string) error {
 func (u *upstream) findDependencies(gopath, repo string) error {
 	log.Printf("Determining dependencies\n")
 
-	cmd := exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo+"/...")
+	cmd := exec.Command("go", "list", "-e", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo+"/...")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		"GO111MODULE=off",
@@ -267,7 +267,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	if err != nil {
 		log.Println("WARNING: In findDependencies:", fmt.Errorf("%q: %w", cmd.Args, err))
 		log.Printf("Retrying without appending \"/...\" to repo")
-		cmd = exec.Command("go", "list", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo)
+		cmd = exec.Command("go", "list", "-e", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo)
 		cmd.Stderr = os.Stderr
 		cmd.Env = append([]string{
 			"GO111MODULE=off",
