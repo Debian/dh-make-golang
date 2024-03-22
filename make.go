@@ -132,8 +132,10 @@ func (u *upstream) get(gopath, repo, rev string) error {
 	u.rr = rr
 	dir := filepath.Join(gopath, "src", rr.Root)
 	if rev != "" {
+		// Run "git clone {repo} {dir}" and "git checkout {tag}"
 		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
 	}
+	// Run "git clone {repo} {dir}" (or the equivalent command for hg, svn, bzr)
 	return rr.VCS.Create(dir, rr.Repo)
 }
 
@@ -216,25 +218,23 @@ func (u *upstream) tar(gopath, repo string) error {
 // package type).
 func (u *upstream) findMains(gopath, repo string) error {
 	cmd := exec.Command("go", "list", "-e", "-f", "{{.ImportPath}} {{.Name}}", repo+"/...")
+	cmd.Dir = filepath.Join(gopath, "src", repo)
+	cmd.Env = passthroughEnv()
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		"GO111MODULE=off",
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
-
+	log.Println("findMains: Running", cmd, "in", cmd.Dir)
 	out, err := cmd.Output()
 	if err != nil {
 		log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
+		// See https://bugs.debian.org/992610
 		log.Printf("Retrying without appending \"/...\" to repo")
 		cmd = exec.Command("go", "list", "-e", "-f", "{{.ImportPath}} {{.Name}}", repo)
+		cmd.Dir = filepath.Join(gopath, "src", repo)
+		cmd.Env = passthroughEnv()
 		cmd.Stderr = os.Stderr
-		cmd.Env = append([]string{
-			"GO111MODULE=off",
-			"GOPATH=" + gopath,
-		}, passthroughEnv()...)
+		log.Println("findMains: Running", cmd, "in", cmd.Dir)
 		out, err = cmd.Output()
 		if err != nil {
-			return fmt.Errorf("%q: %w", cmd.Args, err)
+			log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
 		}
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -257,25 +257,22 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	log.Printf("Determining dependencies\n")
 
 	cmd := exec.Command("go", "list", "-e", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo+"/...")
+	cmd.Dir = filepath.Join(gopath, "src", repo)
+	cmd.Env = passthroughEnv()
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		"GO111MODULE=off",
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
 
 	out, err := cmd.Output()
 	if err != nil {
 		log.Println("WARNING: In findDependencies:", fmt.Errorf("%q: %w", cmd.Args, err))
+		// See https://bugs.debian.org/992610
 		log.Printf("Retrying without appending \"/...\" to repo")
 		cmd = exec.Command("go", "list", "-e", "-f", "{{join .Imports \"\\n\"}}\n{{join .TestImports \"\\n\"}}\n{{join .XTestImports \"\\n\"}}", repo)
+		cmd.Dir = filepath.Join(gopath, "src", repo)
+		cmd.Env = passthroughEnv()
 		cmd.Stderr = os.Stderr
-		cmd.Env = append([]string{
-			"GO111MODULE=off",
-			"GOPATH=" + gopath,
-		}, passthroughEnv()...)
 		out, err = cmd.Output()
 		if err != nil {
-			return fmt.Errorf("%q: %w", cmd.Args, err)
+			log.Println("WARNING: In findDependencies:", fmt.Errorf("%q: %w", cmd.Args, err))
 		}
 	}
 
@@ -301,12 +298,8 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 
 	// Remove all packages which are in the standard lib.
 	cmd = exec.Command("go", "list", "std")
-	cmd.Dir = filepath.Join(gopath, "src", repo)
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		// Not affected by GO111MODULE
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
+	cmd.Env = passthroughEnv()
 
 	out, err = cmd.Output()
 	if err != nil {
