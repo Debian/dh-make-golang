@@ -100,7 +100,7 @@ func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string
 	}
 
 	// Find committer date, UNIX timestamp
-	cmd = exec.Command("git", "log", "--pretty=format:%ct", "-n1")
+	cmd = exec.Command("git", "log", "--pretty=format:%ct", "-n1", "--no-show-signature")
 	cmd.Dir = gitdir
 	lastCommitUnixBytes, err := cmd.Output()
 	if err != nil {
