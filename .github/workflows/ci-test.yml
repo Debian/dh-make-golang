@@ -1,6 +1,9 @@
 name: CI Test
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   ci-test:
@@ -8,18 +11,17 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip ci]')"
     strategy:
       matrix:
-        go-version: ['1.16.x', '1.17.x', '1.18.x']
-    env:
-      GO111MODULE: on  # Needed for github.com/google/go-github/v38
+        go-version: ['1.21', '1.22']
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          check-latest: true
 
       - run: diff -u <(echo -n) <(gofmt -d -s .)
 
@@ -46,7 +48,7 @@ jobs:
           ~/go/bin/dh-make-golang -type p -pristine-tar -program_package_name gh github.com/cli/cli
 
       - name: Upload dh-make-golang test run as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dh-make-golang_test-run_go${{ matrix.go-version }}
           path: _test-run
