@@ -24,7 +24,7 @@ Build-Depends:
  golang-github-jroimartin-gocui-dev,
  golang-github-mattn-go-sqlite3-dev,
  golang-github-mmcdole-gofeed-dev,
-Standards-Version: 4.5.1
+Standards-Version: 4.7.0
 Vcs-Browser: https://salsa.debian.org/go-team/packages/terminews
 Vcs-Git: https://salsa.debian.org/go-team/packages/terminews.git
 Homepage: https://github.com/antavelos/terminews
