@@ -36,8 +36,8 @@ Architecture: any
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
-Built-Using:
- ${misc:Built-Using},
+Static-Built-Using:
+ ${misc:Static-Built-Using},
 Description: read your RSS feeds from your terminal
  Terminews is a terminal based application (TUI)
  that allows you to manage RSS resources and display their news feeds.

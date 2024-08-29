@@ -177,7 +177,7 @@ func addProgramPackage(f *os.File, gopkg, debProg string) {
 	fmt.Fprintf(f, "Architecture: any\n")
 	deps := []string{"${misc:Depends}", "${shlibs:Depends}"}
 	fprintfControlField(f, "Depends", deps)
-	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
+	fmt.Fprintf(f, "Static-Built-Using: ${misc:Static-Built-Using}\n")
 	addDescription(f, gopkg, "(program)")
 }
 
