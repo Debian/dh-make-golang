@@ -177,7 +177,7 @@ func addProgramPackage(f *os.File, gopkg, debProg string) {
 	fmt.Fprintf(f, "Architecture: any\n")
 	deps := []string{"${misc:Depends}", "${shlibs:Depends}"}
 	fprintfControlField(f, "Depends", deps)
-	fmt.Fprintf(f, "Built-Using: ${misc:Built-Using}\n")
+	fmt.Fprintf(f, "Static-Built-Using: ${misc:Static-Built-Using}\n")
 	addDescription(f, gopkg, "(program)")
 }
 
@@ -206,7 +206,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fprintfControlField(f, "Build-Depends", builddeps)
 
 	fmt.Fprintf(f, "Testsuite: autopkgtest-pkg-go\n")
-	fmt.Fprintf(f, "Standards-Version: 4.6.2\n")
+	fmt.Fprintf(f, "Standards-Version: 4.7.0\n")
 	fmt.Fprintf(f, "Vcs-Browser: https://salsa.debian.org/go-team/packages/%s\n", debsrc)
 	fmt.Fprintf(f, "Vcs-Git: https://salsa.debian.org/go-team/packages/%s.git\n", debsrc)
 	fmt.Fprintf(f, "Homepage: %s\n", getHomepageForGopkg(gopkg))
