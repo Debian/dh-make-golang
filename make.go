@@ -417,7 +417,8 @@ func runGitCommandIn(dir string, arg ...string) error {
 }
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
-	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, pristineTar bool) (string, error) {
+	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string,
+	dep14 bool, pristineTar bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get cwd: %w", err)
@@ -463,7 +464,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// Preconfigure branches
 
-	branches := []string{debianBranch, "upstream"}
+	branches := []string{debianBranch, "upstream/latest"}
 	if pristineTar {
 		branches = append(branches, "pristine-tar")
 	}
@@ -497,6 +498,9 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	// Import upstream orig tarball
 
 	arg := []string{"import-orig", "--no-interactive", "--debian-branch=" + debianBranch}
+	if dep14 {
+		arg = append(arg, "--upstream-branch=upstream/latest")
+	}
 	if pristineTar {
 		arg = append(arg, "--pristine-tar")
 	}
@@ -760,7 +764,7 @@ func execMake(args []string, usage func()) {
 	fs.BoolVar(&dep14,
 		"dep14",
 		true,
-		"Follow DEP-14 branch naming and use debian/sid (instead of master)\n"+
+		"Follow DEP-14 branch naming and use debian/latest (instead of master)\n"+
 			"as the default debian-branch.")
 
 	var pristineTar bool
@@ -870,7 +874,7 @@ func execMake(args []string, usage func()) {
 	// Set the debian branch.
 	debBranch := "master"
 	if dep14 {
-		debBranch = "debian/sid"
+		debBranch = "debian/latest"
 	}
 
 	switch strings.TrimSpace(wrapAndSort) {
@@ -961,7 +965,7 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar)
+	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, dep14, pristineTar)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
