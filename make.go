@@ -493,8 +493,8 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
 			return dir, fmt.Errorf("git remote add %s %s: %w", u.remote, u.rr.Repo, err)
 		}
-		log.Printf("Running \"git fetch %s\"\n", u.remote)
-		if err := runGitCommandIn(dir, "fetch", u.remote); err != nil {
+		log.Printf("Running \"git fetch --tags %s\"\n", u.remote)
+		if err := runGitCommandIn(dir, "fetch", "--tags", u.remote); err != nil {
 			return dir, fmt.Errorf("git fetch %s: %w", u.remote, err)
 		}
 	}
