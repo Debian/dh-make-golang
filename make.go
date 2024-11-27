@@ -386,7 +386,7 @@ func makeUpstreamSourceTarball(repo, revision string, forcePrerelease bool) (*up
 
 	log.Printf("Determining upstream version number\n")
 
-	u.version, err = pkgVersionFromGit(repoDir, &u, forcePrerelease)
+	u.version, err = pkgVersionFromGit(repoDir, &u, revision, forcePrerelease)
 	if err != nil {
 		return nil, fmt.Errorf("get package version from Git: %w", err)
 	}
