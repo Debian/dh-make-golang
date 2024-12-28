@@ -40,6 +40,10 @@ command is executed. To learn more about a command, run
 
 Run **dh-make-golang** -help for more details.
 
+# SEE ALSO
+
+**dh**(1), **dh_golang**(1), **Debian::Debhelper::Buildsystem::golang**(3pm)
+
 # AUTHOR
 
 This manual page was written by Michael Stapelberg <stapelberg@debian.org>
