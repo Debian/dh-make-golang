@@ -85,10 +85,10 @@ the command-line.
  .
   1. Call glamour.Render(inputText, "desiredStyle")
   2. Set the GLAMOUR_STYLE environment variable to your desired default
-     style or a file location for a style and call
-     glamour.RenderWithEnvironmentConfig(inputText)
-  3. Set the GLAMOUR_STYLE environment variable and pass
-     glamour.WithEnvironmentConfig() to your custom renderer
+     style or a file location for a style and call glamour.
+     RenderWithEnvironmentConfig(inputText)
+  3. Set the GLAMOUR_STYLE environment variable and pass glamour.
+     WithEnvironmentConfig() to your custom renderer
  .
  Glamourous Projects
  .
