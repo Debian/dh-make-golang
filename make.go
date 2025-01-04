@@ -161,6 +161,9 @@ func (u *upstream) tarballUrl() (string, error) {
 	case "git.sr.ht":
 		return fmt.Sprintf("%s/archive/%s.tar.%s",
 			repo, u.tag, u.compression), nil
+	case "codeberg.org":
+		return fmt.Sprintf("%s/archive/%s.tar.%s",
+			repo, u.tag, u.compression), nil
 	default:
 		return "", errUnsupportedHoster
 	}
@@ -579,6 +582,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"blitiri.com.ar":       "blitiri",
 		"cloud.google.com":     "googlecloud",
 		"code.google.com":      "googlecode",
+		"codeberg.org":         "codeberg",
 		"filippo.io":           "filippo",
 		"fyne.io":              "fyne",
 		"git.sr.ht":            "sourcehut",
