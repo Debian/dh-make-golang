@@ -23,7 +23,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
           check-latest: true
 
-      - run: diff -u <(echo -n) <(gofmt -d -s .)
+      - run: gofmt -w -s . && git diff --exit-code --color
 
       - run: go install -v ./...
 
