@@ -68,20 +68,17 @@ func removeVendor(gopath string) (found bool, _ error) {
 	return found, err
 }
 
-func isFile(path string) bool {
-	if info, err := os.Stat(path); err == nil {
-		return !info.IsDir()
-	}
-	return false
-}
-
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(gopath)
+	defer func() {
+		if err := forceRemoveAll(gopath); err != nil {
+			log.Printf("could not remove all %s: %v", gopath, err)
+		}
+	}()
 
 	// clone the repo inside the src directory of the GOPATH
 	// and init a Go module if it is not yet one.
