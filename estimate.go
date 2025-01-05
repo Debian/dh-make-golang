@@ -3,19 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go/build"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/vcs"
-	"golang.org/x/tools/refactor/importgraph"
 )
 
-func clone(srcdir, repo string) (string, error) {
+func clone(srcdir, repo string) error {
 	done := make(chan struct{})
 	defer close(done)
 	go progressSize("vcs clone", srcdir, done)
@@ -25,11 +22,10 @@ func clone(srcdir, repo string) (string, error) {
 	// version of Go.
 	rr, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
-		return "", fmt.Errorf("get repo root: %w", err)
+		return fmt.Errorf("get repo root: %w", err)
 	}
-	dir := filepath.Join(srcdir, rr.Root)
 	// Run "git clone {repo} {dir}" (or the equivalent command for hg, svn, bzr)
-	return dir, rr.VCS.Create(dir, rr.Repo)
+	return rr.VCS.Create(srcdir, rr.Repo)
 }
 
 func get(gopath, repodir, repo string) error {
@@ -37,9 +33,9 @@ func get(gopath, repodir, repo string) error {
 	defer close(done)
 	go progressSize("go get", repodir, done)
 
-	// Run go get without arguments directly in the module directory to
-	// download all its dependencies (with -t to include the test dependencies).
-	cmd := exec.Command("go", "get", "-t")
+	// Run go mod tidy directly in the module directory to sync go.(mod|sum) and
+	// download all its dependencies.
+	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
@@ -69,22 +65,28 @@ func removeVendor(gopath string) (found bool, _ error) {
 }
 
 func estimate(importpath string) error {
+	removeTemp := func(path string) {
+		if err := forceRemoveAll(path); err != nil {
+			log.Printf("could not remove all %s: %v", path, err)
+		}
+	}
+
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer func() {
-		if err := forceRemoveAll(gopath); err != nil {
-			log.Printf("could not remove all %s: %v", gopath, err)
-		}
-	}()
+	defer removeTemp(gopath)
+	// second temporary directosy for the repo sources
+	repodir, err := os.MkdirTemp("", "dh-make-golang")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer removeTemp(repodir)
 
 	// clone the repo inside the src directory of the GOPATH
 	// and init a Go module if it is not yet one.
-	srcdir := filepath.Join(gopath, "src")
-	repodir, err := clone(srcdir, importpath)
-	if err != nil {
+	if err := clone(repodir, importpath); err != nil {
 		return fmt.Errorf("vcs clone: %w", err)
 	}
 	if !isFile(filepath.Join(repodir, "go.mod")) {
@@ -111,55 +113,79 @@ func estimate(importpath string) error {
 		}
 	}
 
-	// Remove standard lib packages
-	cmd := exec.Command("go", "list", "std")
+	// Get dependency graph from go mod graph
+	cmd := exec.Command("go", "mod", "graph")
+	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
-
 	out, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("go list std: args: %v; error: %w", cmd.Args, err)
-	}
-	stdlib := make(map[string]bool)
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		stdlib[line] = true
+		return fmt.Errorf("go mod graph: args: %v; error: %w", cmd.Args, err)
 	}
 
-	stdlib["C"] = true // would fail resolving anyway
-
-	// Filter out all already-packaged ones:
+	// Retrieve already-packaged ones
 	golangBinaries, err := getGolangBinaries()
 	if err != nil {
 		return nil
 	}
 
-	build.Default.GOPATH = gopath
-	build.Default.Dir = repodir
-	forward, _, errors := importgraph.Build(&build.Default)
-	errLines := make([]string, 0, len(errors))
-	for importPath, err := range errors {
-		// For an unknown reason, parent directories and subpackages
-		// of the current module report an error about not being able
-		// to import them. We can safely ignore them.
-		isSubpackage := strings.HasPrefix(importPath, importpath+"/")
-		isParentDir := strings.HasPrefix(importpath, importPath+"/")
-		if !isSubpackage && !isParentDir && importPath != importPath {
-			errLines = append(errLines, fmt.Sprintf("%s: %v", importPath, err))
-		}
+	// Build a graph in memory from the output of go mod graph
+	type Node struct {
+		name     string
+		children []*Node
 	}
-	if len(errLines) > 0 {
-		return fmt.Errorf("could not load packages: %v", strings.Join(errLines, "\n"))
+	root := &Node{name: importpath}
+	nodes := make(map[string]*Node)
+	nodes[importpath] = root
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		// go mod graph outputs one line for each dependency. Each line
+		// consists of the dependency preceded by the module that
+		// imported it, separated by a single space. The module names
+		// can have a version information delimited by the @ character
+		src, dep, _ := strings.Cut(line, " ")
+		depNode := &Node{name: dep}
+		// Sometimes, the given import path is not the one outputed by
+		// go mod graph, for instance when there are multiple major
+		// versions.
+		// The root module is the only one that does not have a version
+		// indication with @ in the output of go mod graph, so if there
+		// is no @ we always use the given importpath instead.
+		if !strings.Contains(src, "@") {
+			src = importpath
+		}
+		srcNode, ok := nodes[src]
+		if !ok {
+			log.Printf("source not found in graph: %s", src)
+			continue
+		}
+		srcNode.children = append(srcNode.children, depNode)
+		nodes[dep] = depNode
 	}
 
+	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
 	rrseen := make(map[string]bool)
-	node := func(importPath string, indent int) {
-		rr, err := vcs.RepoRootForImportPath(importPath, false)
+	var visit func(n *Node, indent int)
+	visit = func(n *Node, indent int) {
+		// Get the module name without its version, as go mod graph
+		// can return multiple times the same module with different
+		// versions.
+		mod, _, _ := strings.Cut(n.name, "@")
+		if seen[mod] {
+			return
+		}
+		seen[mod] = true
+		// Go version dependency is indicated as a dependency to "go" and
+		// "toolchain", we do not use this information for now.
+		if mod == "go" || mod == "toolchain" {
+			return
+		}
+		rr, err := vcs.RepoRootForImportPath(mod, false)
 		if err != nil {
-			log.Printf("Could not determine repo path for import path %q: %v\n", importPath, err)
+			log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
 			return
 		}
 		if rrseen[rr.Root] {
@@ -170,35 +196,12 @@ func estimate(importpath string) error {
 			return // already packaged in Debian
 		}
 		lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), rr.Root))
-	}
-	var visit func(x string, indent int)
-	visit = func(x string, indent int) {
-		if seen[x] {
-			return
-		}
-		seen[x] = true
-		if !stdlib[x] {
-			node(x, indent)
-		}
-		for y := range forward[x] {
-			visit(y, indent+1)
+		for _, n := range n.children {
+			visit(n, indent+1)
 		}
 	}
 
-	keys := make([]string, 0, len(forward))
-	for key := range forward {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		if !strings.HasPrefix(key, importpath) {
-			continue
-		}
-		if seen[key] {
-			continue // already covered in a previous visit call
-		}
-		visit(key, 0)
-	}
+	visit(root, 0)
 
 	if len(lines) == 0 {
 		log.Printf("%s is already fully packaged in Debian", importpath)
