@@ -15,29 +15,41 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 )
 
-func get(gopath, repo string) error {
+func clone(srcdir, repo string) (string, error) {
 	done := make(chan struct{})
 	defer close(done)
-	go progressSize("go get", filepath.Join(gopath, "src"), done)
+	go progressSize("vcs clone", srcdir, done)
 
-	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
-	// the arguments to “go get” are packages, not repositories. Hence, we
-	// specify “gopkg/...” in order to cover all packages.
-	// As a concrete example, github.com/jacobsa/util is a repository we want
-	// to package into a single Debian package, and using “go get -d
-	// github.com/jacobsa/util” fails because there are no buildable go files
-	// in the top level of that repository.
-	cmd := exec.Command("go", "get", "-d", "-t", repo+"/...")
+	// Get the sources of the module in a temporary dir to be able to run
+	// go get in module mode, as the gopath mode has been removed in latest
+	// version of Go.
+	rr, err := vcs.RepoRootForImportPath(repo, false)
+	if err != nil {
+		return "", fmt.Errorf("get repo root: %w", err)
+	}
+	dir := filepath.Join(srcdir, rr.Root)
+	// Run "git clone {repo} {dir}" (or the equivalent command for hg, svn, bzr)
+	return dir, rr.VCS.Create(dir, rr.Repo)
+}
+
+func get(gopath, repodir, repo string) error {
+	done := make(chan struct{})
+	defer close(done)
+	go progressSize("go get", repodir, done)
+
+	// Run go get without arguments directly in the module directory to
+	// download all its dependencies (with -t to include the test dependencies).
+	cmd := exec.Command("go", "get", "-t")
+	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		"GO111MODULE=off",
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 	return cmd.Run()
 }
 
 func removeVendor(gopath string) (found bool, _ error) {
-	err := filepath.Walk(filepath.Join(gopath, "src"), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -56,6 +68,13 @@ func removeVendor(gopath string) (found bool, _ error) {
 	return found, err
 }
 
+func isFile(path string) bool {
+	if info, err := os.Stat(path); err == nil {
+		return !info.IsDir()
+	}
+	return false
+}
+
 func estimate(importpath string) error {
 	// construct a separate GOPATH in a temporary directory
 	gopath, err := os.MkdirTemp("", "dh-make-golang")
@@ -64,18 +83,33 @@ func estimate(importpath string) error {
 	}
 	defer os.RemoveAll(gopath)
 
-	if err := get(gopath, importpath); err != nil {
+	// clone the repo inside the src directory of the GOPATH
+	// and init a Go module if it is not yet one.
+	srcdir := filepath.Join(gopath, "src")
+	repodir, err := clone(srcdir, importpath)
+	if err != nil {
+		return fmt.Errorf("vcs clone: %w", err)
+	}
+	if !isFile(filepath.Join(repodir, "go.mod")) {
+		cmd := exec.Command("go", "mod", "init", importpath)
+		cmd.Dir = repodir
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("go mod init: %w", err)
+		}
+	}
+
+	if err := get(gopath, repodir, importpath); err != nil {
 		return fmt.Errorf("go get: %w", err)
 	}
 
-	found, err := removeVendor(gopath)
+	found, err := removeVendor(repodir)
 	if err != nil {
 		return fmt.Errorf("remove vendor: %w", err)
 	}
 
 	if found {
 		// Fetch un-vendored dependencies
-		if err := get(gopath, importpath); err != nil {
+		if err := get(gopath, repodir, importpath); err != nil {
 			return fmt.Errorf("fetch un-vendored: go get: %w", err)
 		}
 	}
@@ -84,7 +118,6 @@ func estimate(importpath string) error {
 	cmd := exec.Command("go", "list", "std")
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
-		"GO111MODULE=off",
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
 
@@ -106,13 +139,21 @@ func estimate(importpath string) error {
 	}
 
 	build.Default.GOPATH = gopath
+	build.Default.Dir = repodir
 	forward, _, errors := importgraph.Build(&build.Default)
-	if len(errors) > 0 {
-		lines := make([]string, 0, len(errors))
-		for importPath, err := range errors {
-			lines = append(lines, fmt.Sprintf("%s: %v", importPath, err))
+	errLines := make([]string, 0, len(errors))
+	for importPath, err := range errors {
+		// For an unknown reason, parent directories and subpackages
+		// of the current module report an error about not being able
+		// to import them. We can safely ignore them.
+		isSubpackage := strings.HasPrefix(importPath, importpath+"/")
+		isParentDir := strings.HasPrefix(importpath, importPath+"/")
+		if !isSubpackage && !isParentDir && importPath != importPath {
+			errLines = append(errLines, fmt.Sprintf("%s: %v", importPath, err))
 		}
-		return fmt.Errorf("could not load packages: %v", strings.Join(lines, "\n"))
+	}
+	if len(errLines) > 0 {
+		return fmt.Errorf("could not load packages: %v", strings.Join(errLines, "\n"))
 	}
 
 	var lines []string
