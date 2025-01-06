@@ -174,50 +174,58 @@ func estimate(importpath string) error {
 	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
+	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
 		// Get the module name without its version, as go mod graph
 		// can return multiple times the same module with different
 		// versions.
 		mod, _, _ := strings.Cut(n.name, "@")
-		if seen[mod] {
+		count, isNeeded := needed[mod]
+		if isNeeded {
+			count++
+			needed[mod] = count
+			lines = append(lines, fmt.Sprintf("%s\033[90m%s (%d)\033[0m", strings.Repeat("  ", indent), mod, count))
+		} else if seen[mod] {
 			return
-		}
-		seen[mod] = true
-		// Go version dependency is indicated as a dependency to "go" and
-		// "toolchain", we do not use this information for now.
-		if mod == "go" || mod == "toolchain" {
-			return
-		}
-		if _, ok := golangBinaries[mod]; ok {
-			return // already packaged in Debian
-		}
-		var debianVersion string
-		// Check for potential other major versions already in Debian.
-		for _, otherVersion := range otherVersions(mod) {
-			if _, ok := golangBinaries[otherVersion]; ok {
-				debianVersion = otherVersion
-				break
-			}
-		}
-		if debianVersion == "" {
-			// When multiple modules are developped in the same repo,
-			// the repo root is often used as the import path metadata
-			// in Debian, so we do a last try with that.
-			rr, err := vcs.RepoRootForImportPath(mod, false)
-			if err != nil {
-				log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
-			} else if _, ok := golangBinaries[rr.Root]; ok {
-				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
-				log.Printf("%s is packaged as %s in Debian", mod, rr.Root)
+		} else {
+			seen[mod] = true
+			// Go version dependency is indicated as a dependency to "go" and
+			// "toolchain", we do not use this information for now.
+			if mod == "go" || mod == "toolchain" {
 				return
 			}
-		}
-		if debianVersion != "" {
-			lines = append(lines, fmt.Sprintf("%s%s\t(%s in Debian)", strings.Repeat("  ", indent), mod, debianVersion))
-		} else {
-			lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), mod))
+			if _, ok := golangBinaries[mod]; ok {
+				return // already packaged in Debian
+			}
+			var debianVersion string
+			// Check for potential other major versions already in Debian.
+			for _, otherVersion := range otherVersions(mod) {
+				if _, ok := golangBinaries[otherVersion]; ok {
+					debianVersion = otherVersion
+					break
+				}
+			}
+			if debianVersion == "" {
+				// When multiple modules are developped in the same repo,
+				// the repo root is often used as the import path metadata
+				// in Debian, so we do a last try with that.
+				rr, err := vcs.RepoRootForImportPath(mod, false)
+				if err != nil {
+					log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
+				} else if _, ok := golangBinaries[rr.Root]; ok {
+					// Log info to indicate that it is an approximate match
+					// but consider that it is packaged and skip the children.
+					log.Printf("%s is packaged as %s in Debian", mod, rr.Root)
+					return
+				}
+			}
+			if debianVersion != "" {
+				lines = append(lines, fmt.Sprintf("%s%s\t(%s in Debian)", strings.Repeat("  ", indent), mod, debianVersion))
+			} else {
+				lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), mod))
+			}
+			needed[mod] = 1
 		}
 		for _, n := range n.children {
 			visit(n, indent+1)
