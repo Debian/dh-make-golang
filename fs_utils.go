@@ -6,14 +6,6 @@ import (
 	"path/filepath"
 )
 
-// isFile checks if a path exists and is a file (not a directory).
-func isFile(path string) bool {
-	if info, err := os.Stat(path); err == nil {
-		return !info.IsDir()
-	}
-	return false
-}
-
 // forceRemoveAll is a more robust alternative to [os.RemoveAll] that tries
 // harder to remove all the files and directories.
 func forceRemoveAll(path string) error {

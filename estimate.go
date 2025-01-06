@@ -17,30 +17,19 @@ import (
 // majorVersionRegexp checks if an import path contains a major version suffix.
 var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
-func clone(srcdir, repo string) error {
-	done := make(chan struct{})
-	defer close(done)
-	go progressSize("vcs clone", srcdir, done)
-
-	// Get the sources of the module in a temporary dir to be able to run
-	// go get in module mode, as the gopath mode has been removed in latest
-	// version of Go.
-	rr, err := vcs.RepoRootForImportPath(repo, false)
-	if err != nil {
-		return fmt.Errorf("get repo root: %w", err)
-	}
-	// Run "git clone {repo} {dir}" (or the equivalent command for hg, svn, bzr)
-	return rr.VCS.Create(srcdir, rr.Repo)
-}
-
 func get(gopath, repodir, repo string) error {
 	done := make(chan struct{})
 	defer close(done)
 	go progressSize("go get", repodir, done)
 
-	// Run go mod tidy directly in the module directory to sync go.(mod|sum) and
-	// download all its dependencies.
-	cmd := exec.Command("go", "mod", "tidy")
+	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
+	// the arguments to “go get” are packages, not repositories. Hence, we
+	// specify “gopkg/...” in order to cover all packages.
+	// As a concrete example, github.com/jacobsa/util is a repository we want
+	// to package into a single Debian package, and using “go get -t
+	// github.com/jacobsa/util” fails because there are no buildable go files
+	// in the top level of that repository.
+	cmd := exec.Command("go", "get", "-t", repo+"/...")
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
@@ -107,17 +96,10 @@ func estimate(importpath string) error {
 	}
 	defer removeTemp(repodir)
 
-	// clone the repo inside the src directory of the GOPATH
-	// and init a Go module if it is not yet one.
-	if err := clone(repodir, importpath); err != nil {
-		return fmt.Errorf("vcs clone: %w", err)
-	}
-	if !isFile(filepath.Join(repodir, "go.mod")) {
-		cmd := exec.Command("go", "mod", "init", importpath)
-		cmd.Dir = repodir
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("go mod init: %w", err)
-		}
+	// Create a dummy go module in repodir to be able to use go get.
+	err = os.WriteFile(filepath.Join(repodir, "go.mod"), []byte("module dummymod\n"), 0644)
+	if err != nil {
+		return fmt.Errorf("create dummymod: %w", err)
 	}
 
 	if err := get(gopath, repodir, importpath); err != nil {
@@ -168,23 +150,25 @@ func estimate(importpath string) error {
 		// imported it, separated by a single space. The module names
 		// can have a version information delimited by the @ character
 		src, dep, _ := strings.Cut(line, " ")
-		depNode := &Node{name: dep}
-		// Sometimes, the given import path is not the one outputed by
-		// go mod graph, for instance when there are multiple major
-		// versions.
 		// The root module is the only one that does not have a version
-		// indication with @ in the output of go mod graph, so if there
-		// is no @ we always use the given importpath instead.
-		if !strings.Contains(src, "@") {
+		// indication with @ in the output of go mod graph. We use this
+		// to filter out the depencencies of the "dummymod" module.
+		if mod, _, found := strings.Cut(src, "@"); !found {
+			continue
+		} else if mod == importpath || strings.HasPrefix(mod, importpath+"/") {
 			src = importpath
+		}
+		depNode, ok := nodes[dep]
+		if !ok {
+			depNode = &Node{name: dep}
+			nodes[dep] = depNode
 		}
 		srcNode, ok := nodes[src]
 		if !ok {
-			log.Printf("source not found in graph: %s", src)
-			continue
+			srcNode = &Node{name: src}
+			nodes[src] = srcNode
 		}
 		srcNode.children = append(srcNode.children, depNode)
-		nodes[dep] = depNode
 	}
 
 	// Analyse the dependency graph
