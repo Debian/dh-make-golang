@@ -7,10 +7,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/vcs"
 )
+
+// majorVersionRegexp checks if an import path contains a major version suffix.
+var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
 func clone(srcdir, repo string) error {
 	done := make(chan struct{})
@@ -62,6 +67,24 @@ func removeVendor(gopath string) (found bool, _ error) {
 		return filepath.SkipDir
 	})
 	return found, err
+}
+
+// otherVersions guesses the import paths of potential other major version
+// of the given module import path, based on [majorVersionRegex].
+func otherVersions(mod string) (mods []string) {
+	matches := majorVersionRegexp.FindStringSubmatch(mod)
+	if matches == nil {
+		return
+	}
+	matchFull, matchSep, matchVer := matches[0], matches[1], matches[2]
+	matchIndex := len(mod) - len(matchFull)
+	prefix := mod[:matchIndex]
+	version, _ := strconv.Atoi(matchVer)
+	for v := version - 1; v > 1; v-- {
+		mods = append(mods, prefix+matchSep+"v"+strconv.Itoa(v))
+	}
+	mods = append(mods, prefix)
+	return
 }
 
 func estimate(importpath string) error {
@@ -167,7 +190,6 @@ func estimate(importpath string) error {
 	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
-	rrseen := make(map[string]bool)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
 		// Get the module name without its version, as go mod graph
@@ -183,19 +205,36 @@ func estimate(importpath string) error {
 		if mod == "go" || mod == "toolchain" {
 			return
 		}
-		rr, err := vcs.RepoRootForImportPath(mod, false)
-		if err != nil {
-			log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
-			return
-		}
-		if rrseen[rr.Root] {
-			return
-		}
-		rrseen[rr.Root] = true
-		if _, ok := golangBinaries[rr.Root]; ok {
+		if _, ok := golangBinaries[mod]; ok {
 			return // already packaged in Debian
 		}
-		lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), rr.Root))
+		var debianVersion string
+		// Check for potential other major versions already in Debian.
+		for _, otherVersion := range otherVersions(mod) {
+			if _, ok := golangBinaries[otherVersion]; ok {
+				debianVersion = otherVersion
+				break
+			}
+		}
+		if debianVersion == "" {
+			// When multiple modules are developped in the same repo,
+			// the repo root is often used as the import path metadata
+			// in Debian, so we do a last try with that.
+			rr, err := vcs.RepoRootForImportPath(mod, false)
+			if err != nil {
+				log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
+			} else if _, ok := golangBinaries[rr.Root]; ok {
+				// Log info to indicate that it is an approximate match
+				// but consider that it is packaged and skip the children.
+				log.Printf("%s is packaged as %s in Debian", mod, rr.Root)
+				return
+			}
+		}
+		if debianVersion != "" {
+			lines = append(lines, fmt.Sprintf("%s%s\t(%s in Debian)", strings.Repeat("  ", indent), mod, debianVersion))
+		} else {
+			lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), mod))
+		}
 		for _, n := range n.children {
 			visit(n, indent+1)
 		}
