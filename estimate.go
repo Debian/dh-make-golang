@@ -230,7 +230,7 @@ func estimate(importpath string) error {
 		log.Printf("%s is already fully packaged in Debian", importpath)
 		return nil
 	}
-	log.Printf("Bringing %s to Debian requires packaging the following Go packages:", importpath)
+	log.Printf("Bringing %s to Debian requires packaging the following Go modules:", importpath)
 	for _, line := range lines {
 		fmt.Println(line)
 	}
@@ -242,8 +242,8 @@ func execEstimate(args []string) {
 	fs := flag.NewFlagSet("estimate", flag.ExitOnError)
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s estimate <go-package-importpath>\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-package-importpath> into Debian\n"+
+		fmt.Fprintf(os.Stderr, "Usage: %s estimate <go-module-importpath>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-module-importpath> into Debian\n"+
 			"by printing all currently unpacked repositories.\n")
 		fmt.Fprintf(os.Stderr, "Example: %s estimate github.com/Debian/dh-make-golang\n", os.Args[0])
 	}
