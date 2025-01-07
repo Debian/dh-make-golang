@@ -174,6 +174,7 @@ func estimate(importpath string) error {
 	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
+	rrseen := make(map[string]bool)
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
@@ -198,6 +199,14 @@ func estimate(importpath string) error {
 			if _, ok := golangBinaries[mod]; ok {
 				return // already packaged in Debian
 			}
+			var repoRoot string
+			rr, err := vcs.RepoRootForImportPath(mod, false)
+			if err != nil {
+				log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
+				repoRoot = mod
+			} else {
+				repoRoot = rr.Root
+			}
 			var debianVersion string
 			// Check for potential other major versions already in Debian.
 			for _, otherVersion := range otherVersions(mod) {
@@ -210,21 +219,27 @@ func estimate(importpath string) error {
 				// When multiple modules are developped in the same repo,
 				// the repo root is often used as the import path metadata
 				// in Debian, so we do a last try with that.
-				rr, err := vcs.RepoRootForImportPath(mod, false)
-				if err != nil {
-					log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
-				} else if _, ok := golangBinaries[rr.Root]; ok {
+				if _, ok := golangBinaries[repoRoot]; ok {
 					// Log info to indicate that it is an approximate match
 					// but consider that it is packaged and skip the children.
-					log.Printf("%s is packaged as %s in Debian", mod, rr.Root)
+					log.Printf("%s is packaged as %s in Debian", mod, repoRoot)
 					return
 				}
 			}
-			if debianVersion != "" {
-				lines = append(lines, fmt.Sprintf("%s%s\t(%s in Debian)", strings.Repeat("  ", indent), mod, debianVersion))
+			line := strings.Repeat("  ", indent)
+			if rrseen[repoRoot] {
+				line += fmt.Sprintf("\033[90m%s\033[0m", mod)
+			} else if strings.HasPrefix(mod, repoRoot) && len(mod) > len(repoRoot) {
+				suffix := mod[len(repoRoot):]
+				line += fmt.Sprintf("%s\033[90m%s\033[0m", repoRoot, suffix)
 			} else {
-				lines = append(lines, fmt.Sprintf("%s%s", strings.Repeat("  ", indent), mod))
+				line += mod
 			}
+			if debianVersion != "" {
+				line += fmt.Sprintf("\t(%s in Debian)", debianVersion)
+			}
+			lines = append(lines, line)
+			rrseen[repoRoot] = true
 			needed[mod] = 1
 		}
 		for _, n := range n.children {
