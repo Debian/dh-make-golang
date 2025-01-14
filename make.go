@@ -435,17 +435,8 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		return "", fmt.Errorf("mkdir: %w", err)
 	}
 
-	// "git init -b" is the one-liner we need here, however it was added in Git 2.28.
-	// For now we prefer to keep compatibility with older Git, so we do it in two
-	// rounds, "git init" then "git checkout".
-	//if err := runGitCommandIn(dir, "init", "-b", debianBranch); err != nil {
-	//	return dir, err
-	//}
-	if err := runGitCommandIn(dir, "init"); err != nil {
+	if err := runGitCommandIn(dir, "init", "-b", debianBranch); err != nil {
 		return dir, fmt.Errorf("git init: %w", err)
-	}
-	if err := runGitCommandIn(dir, "checkout", "-q", "-b", debianBranch); err != nil {
-		return dir, fmt.Errorf("git checkout: %w", err)
 	}
 
 	// Set repository options
