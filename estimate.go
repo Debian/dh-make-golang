@@ -17,7 +17,7 @@ import (
 // majorVersionRegexp checks if an import path contains a major version suffix.
 var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
-func get(gopath, repodir, repo string) error {
+func get(gopath, repodir, repo, rev string) error {
 	done := make(chan struct{})
 	defer close(done)
 	go progressSize("go get", repodir, done)
@@ -29,7 +29,11 @@ func get(gopath, repodir, repo string) error {
 	// to package into a single Debian package, and using “go get -t
 	// github.com/jacobsa/util” fails because there are no buildable go files
 	// in the top level of that repository.
-	cmd := exec.Command("go", "get", "-t", repo+"/...")
+	packages := repo + "/..."
+	if rev != "" {
+		packages += "@" + rev
+	}
+	cmd := exec.Command("go", "get", "-t", packages)
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
@@ -76,7 +80,7 @@ func otherVersions(mod string) (mods []string) {
 	return
 }
 
-func estimate(importpath string) error {
+func estimate(importpath, revision string) error {
 	removeTemp := func(path string) {
 		if err := forceRemoveAll(path); err != nil {
 			log.Printf("could not remove all %s: %v", path, err)
@@ -102,7 +106,7 @@ func estimate(importpath string) error {
 		return fmt.Errorf("create dummymod: %w", err)
 	}
 
-	if err := get(gopath, repodir, importpath); err != nil {
+	if err := get(gopath, repodir, importpath, revision); err != nil {
 		return fmt.Errorf("go get: %w", err)
 	}
 
@@ -113,7 +117,7 @@ func estimate(importpath string) error {
 
 	if found {
 		// Fetch un-vendored dependencies
-		if err := get(gopath, repodir, importpath); err != nil {
+		if err := get(gopath, repodir, importpath, revision); err != nil {
 			return fmt.Errorf("fetch un-vendored: go get: %w", err)
 		}
 	}
@@ -246,7 +250,18 @@ func execEstimate(args []string) {
 		fmt.Fprintf(os.Stderr, "Estimates the work necessary to bring <go-module-importpath> into Debian\n"+
 			"by printing all currently unpacked repositories.\n")
 		fmt.Fprintf(os.Stderr, "Example: %s estimate github.com/Debian/dh-make-golang\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		fs.PrintDefaults()
 	}
+
+	var gitRevision string
+	fs.StringVar(&gitRevision,
+		"git_revision",
+		"",
+		"git revision (see gitrevisions(7)) of the specified Go package\n"+
+			"to estimate, defaulting to the default behavior of go get.\n"+
+			"Useful in case you do not want to estimate the latest version.")
 
 	err := fs.Parse(args)
 	if err != nil {
@@ -258,9 +273,9 @@ func execEstimate(args []string) {
 		os.Exit(1)
 	}
 
-	// TODO: support the -git_revision flag
+	gitRevision = strings.TrimSpace(gitRevision)
 
-	if err := estimate(fs.Arg(0)); err != nil {
+	if err := estimate(fs.Arg(0), gitRevision); err != nil {
 		log.Fatalf("estimate: %s", err)
 	}
 }
