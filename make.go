@@ -416,8 +416,7 @@ func runGitCommandIn(dir string, arg ...string) error {
 }
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
-	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string,
-	dep14 bool, pristineTar bool) (string, error) {
+	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, dep14 bool, pristineTar bool) (string, error) {
 
 	// debianBranch is passed in function call, but upstream import branch needs
 	// also to be defined
