@@ -86,7 +86,6 @@ func writeDebianGitIgnore(dir, debLib, debProg string, pkgType packageType) erro
 	fmt.Fprintf(f, "*.log\n")
 	fmt.Fprintf(f, "*.substvars\n")
 	fmt.Fprintf(f, "/.debhelper/\n")
-	fmt.Fprintf(f, "/build/\n")
 	fmt.Fprintf(f, "/debhelper-build-stamp\n")
 	fmt.Fprintf(f, "/files\n")
 
@@ -300,12 +299,7 @@ func writeDebianRules(dir string, pkgType packageType) error {
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
-	fmt.Fprintf(f, "\tdh $@ --builddirectory=debian/build --buildsystem=golang\n")
-	// Note: The above `--builddirectory=debian/build` will eventually be obsolete
-	// in 2028+ then the dh-golang version 1.63+ that has
-	// https://salsa.debian.org/go-team/packages/dh-golang/-/commit/bc16dff5381b668a71fa99c381baba202c34c789
-	// is in use everywhere
-
+	fmt.Fprintf(f, "\tdh $@ --builddirectory=_build --buildsystem=golang\n")
 	if pkgType == typeProgram {
 		fmt.Fprintf(f, "\n")
 		fmt.Fprintf(f, "override_dh_auto_install:\n")
