@@ -417,14 +417,6 @@ func runGitCommandIn(dir string, arg ...string) error {
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, dep14 bool, pristineTar bool) (string, error) {
-
-	// debianBranch is passed in function call, but upstream import branch needs
-	// also to be defined
-	upstreamImportBranch := "upstream"
-	if dep14 {
-		upstreamImportBranch = "upstream/latest"
-	}
-
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get cwd: %w", err)
@@ -470,8 +462,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// Preconfigure branches
 
-	branches := []string{debianBranch, upstreamImportBranch}
-
+	branches := []string{debianBranch, "upstream/latest"}
 	if pristineTar {
 		branches = append(branches, "pristine-tar")
 	}
@@ -485,8 +476,13 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 
 	if includeUpstreamHistory {
-		// Always call the upstream git remote 'upstreamvcs' just like git-buildpackage does
-		u.remote = "upstreamvcs"
+		u.remote, err = shortHostName(gopkg, allowUnknownHoster)
+		if err != nil {
+			return dir, fmt.Errorf("unable to fetch upstream history: %q", err)
+		}
+		if u.remote == "debian" {
+			u.remote = "salsa"
+		}
 		log.Printf("Adding remote %q with URL %q\n", u.remote, u.rr.Repo)
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
 			return dir, fmt.Errorf("git remote add %s %s: %w", u.remote, u.rr.Repo, err)
@@ -498,13 +494,10 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 
 	// Import upstream orig tarball
-	// (and release git tag if includeUpstreamHistory)
 
-	arg := []string{
-		"import-orig",
-		"--no-interactive",
-		"--debian-branch=" + debianBranch,
-		"--upstream-branch=" + upstreamImportBranch,
+	arg := []string{"import-orig", "--no-interactive", "--debian-branch=" + debianBranch}
+	if dep14 {
+		arg = append(arg, "--upstream-branch=upstream/latest")
 	}
 	if pristineTar {
 		arg = append(arg, "--pristine-tar")
