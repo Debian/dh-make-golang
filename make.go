@@ -416,16 +416,7 @@ func runGitCommandIn(dir string, arg ...string) error {
 }
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
-	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string,
-	dep14 bool, pristineTar bool) (string, error) {
-
-	// debianBranch is passed in function call, but upstream import branch needs
-	// also to be defined
-	upstreamImportBranch := "upstream"
-	if dep14 {
-		upstreamImportBranch = "upstream/latest"
-	}
-
+	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, pristineTar bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get cwd: %w", err)
@@ -471,8 +462,7 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// Preconfigure branches
 
-	branches := []string{debianBranch, upstreamImportBranch}
-
+	branches := []string{debianBranch, "upstream"}
 	if pristineTar {
 		branches = append(branches, "pristine-tar")
 	}
@@ -486,8 +476,13 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 
 	if includeUpstreamHistory {
-		// Always call the upstream git remote 'upstreamvcs' just like git-buildpackage does
-		u.remote = "upstreamvcs"
+		u.remote, err = shortHostName(gopkg, allowUnknownHoster)
+		if err != nil {
+			return dir, fmt.Errorf("unable to fetch upstream history: %q", err)
+		}
+		if u.remote == "debian" {
+			u.remote = "salsa"
+		}
 		log.Printf("Adding remote %q with URL %q\n", u.remote, u.rr.Repo)
 		if err := runGitCommandIn(dir, "remote", "add", u.remote, u.rr.Repo); err != nil {
 			return dir, fmt.Errorf("git remote add %s %s: %w", u.remote, u.rr.Repo, err)
@@ -499,14 +494,8 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	}
 
 	// Import upstream orig tarball
-	// (and release git tag if includeUpstreamHistory)
 
-	arg := []string{
-		"import-orig",
-		"--no-interactive",
-		"--debian-branch=" + debianBranch,
-		"--upstream-branch=" + upstreamImportBranch,
-	}
+	arg := []string{"import-orig", "--no-interactive", "--debian-branch=" + debianBranch}
 	if pristineTar {
 		arg = append(arg, "--pristine-tar")
 	}
@@ -519,6 +508,29 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return dir, fmt.Errorf("import-orig: %w", err)
+	}
+
+	{
+		f, err := os.OpenFile(filepath.Join(dir, ".gitignore"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return dir, fmt.Errorf("open .gitignore: %w", err)
+		}
+		// Beginning newline in case the file already exists and lacks a newline
+		// (not all editors enforce a newline at the end of the file):
+		if _, err := f.Write([]byte("\n/.pc/\n/_build/\n")); err != nil {
+			return dir, fmt.Errorf("write to .gitignore: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			return dir, fmt.Errorf("close .gitignore: %w", err)
+		}
+	}
+
+	if err := runGitCommandIn(dir, "add", ".gitignore"); err != nil {
+		return dir, fmt.Errorf("git add .gitignore: %w", err)
+	}
+
+	if err := runGitCommandIn(dir, "commit", "-m", "Ignore _build and quilt .pc dirs via .gitignore"); err != nil {
+		return dir, fmt.Errorf("git commit (.gitignore): %w", err)
 	}
 
 	return dir, nil
@@ -765,7 +777,7 @@ func execMake(args []string, usage func()) {
 	fs.BoolVar(&dep14,
 		"dep14",
 		true,
-		"Follow DEP-14 branch naming and use debian/latest (instead of master)\n"+
+		"Follow DEP-14 branch naming and use debian/sid (instead of master)\n"+
 			"as the default debian-branch.")
 
 	var pristineTar bool
@@ -875,7 +887,7 @@ func execMake(args []string, usage func()) {
 	// Set the debian branch.
 	debBranch := "master"
 	if dep14 {
-		debBranch = "debian/latest"
+		debBranch = "debian/sid"
 	}
 
 	switch strings.TrimSpace(wrapAndSort) {
@@ -966,7 +978,7 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, dep14, pristineTar)
+	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
