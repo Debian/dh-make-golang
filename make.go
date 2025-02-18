@@ -822,7 +822,7 @@ func execMake(args []string, usage func()) {
 
 	fs.StringVar(&wrapAndSort,
 		"wrap-and-sort",
-		"a",
+		"at",
 		"Set how the various multi-line fields in debian/control are formatted.\n"+
 			"Valid values are \"a\", \"at\" and \"ast\", see wrap-and-sort(1) man page\n"+
 			"for more information.")
