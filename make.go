@@ -1045,11 +1045,6 @@ func execMake(args []string, usage func()) {
 	fmt.Printf("\n")
 
 	if includeUpstreamHistory {
-		fmt.Printf("NOTE: Full upstream git history has been included as per pkg-go team's\n")
-		fmt.Printf("      new workflow.  This feature is new and somewhat experimental,\n")
-		fmt.Printf("      and all feedback are welcome!\n")
-		fmt.Printf("      (For old behavior, use --upstream_git_history=false)\n")
-		fmt.Printf("\n")
 		fmt.Printf("The upstream git history is being tracked with the remote named %q.\n", u.remote)
 		fmt.Printf("To upgrade to the latest upstream version, you may use something like:\n")
 		fmt.Printf("    git fetch %-15v # note the latest tag or commit-ish\n", u.remote)
