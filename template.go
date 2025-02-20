@@ -266,19 +266,19 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 	if len(vendorDirs) > 0 || hasGodeps {
 		fmt.Fprintf(f, "Files-Excluded:\n")
 		for _, dir := range vendorDirs {
-			fmt.Fprintf(f, indent+"%s\n", dir)
+			fmt.Fprintf(f, "%s%s\n", indent, dir)
 		}
 		if hasGodeps {
-			fmt.Fprintf(f, indent+"Godeps/_workspace\n")
+			fmt.Fprintf(f, "%sGodeps/_workspace\n", indent)
 		}
 	}
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files:"+linebreak+" *\n")
-	fmt.Fprintf(f, "Copyright:"+linebreak+" %s\n", copyright)
+	fmt.Fprintf(f, "Files:%s *\n", linebreak)
+	fmt.Fprintf(f, "Copyright:%s %s\n", linebreak, copyright)
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "\n")
-	fmt.Fprintf(f, "Files:"+linebreak+" debian/*\n")
-	fmt.Fprintf(f, "Copyright:"+linebreak+" %s %s <%s>\n", time.Now().Format("2006"), getDebianName(), getDebianEmail())
+	fmt.Fprintf(f, "Files:%s debian/*\n", linebreak)
+	fmt.Fprintf(f, "Copyright:%s %s %s <%s>\n", linebreak, time.Now().Format("2006"), getDebianName(), getDebianEmail())
 	fmt.Fprintf(f, "License: %s\n", license)
 	fmt.Fprintf(f, "Comment: Debian packaging is licensed under the same terms as upstream\n")
 	fmt.Fprintf(f, "\n")
