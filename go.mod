@@ -10,7 +10,6 @@ require (
 	golang.org/x/mod v0.19.0
 	golang.org/x/net v0.27.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/tools v0.23.0
 	golang.org/x/tools/go/vcs v0.1.0-deprecated
 	pault.ag/go/debian v0.16.0
 )
@@ -32,8 +31,8 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/yuin/goldmark v1.7.4 // indirect
 	github.com/yuin/goldmark-emoji v1.0.3 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
-	golang.org/x/term v0.22.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
 	pault.ag/go/topsort v0.1.1 // indirect
 )
