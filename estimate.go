@@ -94,6 +94,18 @@ func otherVersions(mod string) (mods []string) {
 	return
 }
 
+// findOtherVersion search in m for potential other versions of the given
+// module and returns the number of the major version found, 0 if not.
+func findOtherVersion(m map[string]string, mod string) int {
+	versions := otherVersions(mod)
+	for i, version := range versions {
+		if _, ok := m[version]; ok {
+			return len(versions) - i
+		}
+	}
+	return 0
+}
+
 func estimate(importpath, revision string) error {
 	removeTemp := func(path string) {
 		if err := forceRemoveAll(path); err != nil {
@@ -225,24 +237,26 @@ func estimate(importpath, revision string) error {
 			} else {
 				repoRoot = rr.Root
 			}
-			var debianVersion string
 			// Check for potential other major versions already in Debian.
-			for _, otherVersion := range otherVersions(mod) {
-				if _, ok := golangBinaries[otherVersion]; ok {
-					debianVersion = otherVersion
-					break
+			v := findOtherVersion(golangBinaries, mod)
+			if v != 0 {
+				// Log info to indicate that it is an approximate match
+				// but consider that it is packaged and skip the children.
+				if v == 1 {
+					log.Printf("%s has no version string in Debian", mod)
+				} else {
+					log.Printf("%s is v%d in Debian", mod, v)
 				}
+				return
 			}
-			if debianVersion == "" {
-				// When multiple modules are developped in the same repo,
-				// the repo root is often used as the import path metadata
-				// in Debian, so we do a last try with that.
-				if _, ok := golangBinaries[repoRoot]; ok {
-					// Log info to indicate that it is an approximate match
-					// but consider that it is packaged and skip the children.
-					log.Printf("%s is packaged as %s in Debian", mod, repoRoot)
-					return
-				}
+			// When multiple modules are developped in the same repo,
+			// the repo root is often used as the import path metadata
+			// in Debian, so we do a last try with that.
+			if _, ok := golangBinaries[repoRoot]; ok {
+				// Log info to indicate that it is an approximate match
+				// but consider that it is packaged and skip the children.
+				log.Printf("%s is packaged as %s in Debian", mod, repoRoot)
+				return
 			}
 			// Ignore modules from the blocklist.
 			if reason, found := moduleBlocklist[mod]; found {
@@ -257,9 +271,6 @@ func estimate(importpath, revision string) error {
 				line += fmt.Sprintf("%s\033[90m%s\033[0m", repoRoot, suffix)
 			} else {
 				line += mod
-			}
-			if debianVersion != "" {
-				line += fmt.Sprintf("\t(%s in Debian)", debianVersion)
 			}
 			lines = append(lines, line)
 			rrseen[repoRoot] = true
