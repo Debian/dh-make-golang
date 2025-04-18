@@ -17,6 +17,13 @@ import (
 // majorVersionRegexp checks if an import path contains a major version suffix.
 var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
+// moduleBlocklist is a map of modules that we want to exclude from the estimate
+// output, associated with the reason why.
+var moduleBlocklist = map[string]string{
+	"github.com/arduino/go-win32-utils": "Windows only",
+	"github.com/Microsoft/go-winio":     "Windows only",
+}
+
 func get(gopath, repodir, repo, rev string) error {
 	done := make(chan struct{})
 	defer close(done)
@@ -229,6 +236,11 @@ func estimate(importpath, revision string) error {
 					log.Printf("%s is packaged as %s in Debian", mod, repoRoot)
 					return
 				}
+			}
+			// Ignore modules from the blocklist.
+			if reason, found := moduleBlocklist[mod]; found {
+				log.Printf("Ignoring module %s: %s", mod, reason)
+				return
 			}
 			line := strings.Repeat("  ", indent)
 			if rrseen[repoRoot] {
