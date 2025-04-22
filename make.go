@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -689,7 +690,7 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 		description = "TODO"
 	}
 
-	fmt.Fprintf(f, "From: %q <%s>\n", getDebianName(), getDebianEmail())
+	fmt.Fprintf(f, "From: %q <%s>\n", mime.QEncoding.Encode("utf-8", getDebianName()), getDebianEmail())
 	fmt.Fprintf(f, "To: submit@bugs.debian.org\n")
 	fmt.Fprintf(f, "Subject: ITP: %s -- %s\n", debsrc, description)
 	fmt.Fprintf(f, "Content-Type: text/plain; charset=utf-8\n")
