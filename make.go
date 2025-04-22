@@ -690,9 +690,11 @@ func writeITP(gopkg, debsrc, debversion string) (string, error) {
 		description = "TODO"
 	}
 
+	subject := mime.QEncoding.Encode("utf-8", fmt.Sprintf("ITP: %s -- %s", debsrc, description))
+
 	fmt.Fprintf(f, "From: %q <%s>\n", mime.QEncoding.Encode("utf-8", getDebianName()), getDebianEmail())
 	fmt.Fprintf(f, "To: submit@bugs.debian.org\n")
-	fmt.Fprintf(f, "Subject: ITP: %s -- %s\n", debsrc, description)
+	fmt.Fprintf(f, "Subject: %s\n", subject)
 	fmt.Fprintf(f, "Content-Type: text/plain; charset=utf-8\n")
 	fmt.Fprintf(f, "Content-Transfer-Encoding: 8bit\n")
 	fmt.Fprintf(f, "X-Debbugs-CC: debian-devel@lists.debian.org, debian-go@lists.debian.org\n")
