@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -20,7 +21,7 @@ var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 func get(gopath, repodir, repo, rev string) error {
 	done := make(chan struct{})
 	defer close(done)
-	go progressSize("go get", repodir, done)
+	go progressSize("go get", gopath, done)
 
 	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
 	// the arguments to “go get” are packages, not repositories. Hence, we
@@ -34,12 +35,18 @@ func get(gopath, repodir, repo, rev string) error {
 		packages += "@" + rev
 	}
 	cmd := exec.Command("go", "get", "-t", packages)
+
+	out := bytes.Buffer{}
 	cmd.Dir = repodir
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = &out
 	cmd.Env = append([]string{
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
-	return cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		fmt.Fprint(os.Stderr, "\n", out.String())
+	}
+	return err
 }
 
 func removeVendor(gopath string) (found bool, _ error) {
