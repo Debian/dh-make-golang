@@ -95,15 +95,22 @@ func otherVersions(mod string) (mods []string) {
 }
 
 // findOtherVersion search in m for potential other versions of the given
-// module and returns the number of the major version found, 0 if not.
-func findOtherVersion(m map[string]string, mod string) int {
+// module and returns the number of the major version found, 0 if not,
+// along with the corresponding package name.
+func findOtherVersion(m map[string]string, mod string) (int, string) {
 	versions := otherVersions(mod)
 	for i, version := range versions {
-		if _, ok := m[version]; ok {
-			return len(versions) - i
+		if pkg, ok := m[version]; ok {
+			return len(versions) - i, pkg
 		}
 	}
-	return 0
+	return 0, ""
+}
+
+// trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
+// package name.
+func trackerLink(pkg string) string {
+	return fmt.Sprintf("\033]8;;https://tracker.debian.org/pkg/%[1]s\033\\%[1]s\033]8;;\033\\", pkg)
 }
 
 func estimate(importpath, revision string) error {
@@ -238,24 +245,24 @@ func estimate(importpath, revision string) error {
 				repoRoot = rr.Root
 			}
 			// Check for potential other major versions already in Debian.
-			v := findOtherVersion(golangBinaries, mod)
+			v, pkg := findOtherVersion(golangBinaries, mod)
 			if v != 0 {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
 				if v == 1 {
-					log.Printf("%s has no version string in Debian", mod)
+					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg))
 				} else {
-					log.Printf("%s is v%d in Debian", mod, v)
+					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg))
 				}
 				return
 			}
 			// When multiple modules are developped in the same repo,
 			// the repo root is often used as the import path metadata
 			// in Debian, so we do a last try with that.
-			if _, ok := golangBinaries[repoRoot]; ok {
+			if pkg, ok := golangBinaries[repoRoot]; ok {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
-				log.Printf("%s is packaged as %s in Debian", mod, repoRoot)
+				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg))
 				return
 			}
 			// Ignore modules from the blocklist.
