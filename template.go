@@ -475,53 +475,18 @@ func writeDebianUpstreamMetadata(dir, gopkg string) error {
 }
 
 func writeDebianGitLabCI(dir string) error {
-	const gitlabciymlTmpl = `# DO NOT MODIFY
-# This file was automatically generated from the authoritative copy at:
-# https://salsa.debian.org/go-team/infra/pkg-go-tools/blob/master/config/gitlabciyml.go
----
-stages:
-  - test
-  - package
-
-include:
-  - project: go-team/infra/pkg-go-tools
-    ref: master
-    file: pipeline/test-archive.yml
-    # Run the Go team CI only in the go-team project that has access to GitLab
-    # CI runners tagged 'go-ci'
-    rules:
-      - if: $CI_PROJECT_ROOT_NAMESPACE  == "go-team"
-
-Salsa CI:
-  stage: package
-  trigger:
-    include:
-      - project: salsa-ci-team/pipeline
-        ref: master
-        file: recipes/debian.yml
-    strategy: depend
-  rules:
-    # Do not create a pipeline for tags unless SALSA_CI_ENABLE_PIPELINE_ON_TAGS is set
-    - if: $CI_COMMIT_TAG != null && $SALSA_CI_ENABLE_PIPELINE_ON_TAGS !~ /^(1|yes|true)$/
-      when: never
-    # Avoid duplicated pipelines, do not run detached pipelines
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: never
-    # Run Salsa CI only if the Play button is pressed on the pipeline
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
-  variables:
-    SALSA_CI_DISABLE_REPROTEST: 1 # Disable to save CI runner resources
-
-# If Salsa CI is not running at
-# https://salsa.debian.org/%{project_path}/-/pipelines, ensure that
-# https://salsa.debian.org/%{project_path}/-/settings/ci_cd has in field "CI/CD
-# configuration file" the same filename as this file.
+	const gitlabciymlTmpl = `# This is a template from
+# https://salsa.debian.org/salsa-ci-team/pipeline/-/raw/master/recipes/salsa-ci.yml
 #
-# If Salsa CI is running, but first job is stuck because the project doesn't
-# have any runners online assigned to it, ensure that
-# https://salsa.debian.org/%{project_path}/-/settings/ci_cd has under "Runners"
-# the setting for "Enable instance runners for this project" enabled.
+# For documentation please read https://salsa.debian.org/salsa-ci-team/pipeline
+#
+# TODO: For a new package, please ensure that the CI is fully passing and green.
+# Disable tests if they can't be easily fixed. The purpose of a CI is to catch
+# regressions, and having a CI file in a new package is moot if it isn't working
+# to begin with.
+---
+include:
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 `
 
 	f, err := os.Create(filepath.Join(dir, "debian", "gitlab-ci.yml"))
