@@ -28,7 +28,6 @@ Standards-Version: 4.7.0
 Vcs-Browser: https://salsa.debian.org/go-team/packages/terminews
 Vcs-Git: https://salsa.debian.org/go-team/packages/terminews.git
 Homepage: https://github.com/antavelos/terminews
-Rules-Requires-Root: no
 XS-Go-Import-Path: github.com/antavelos/terminews
 
 Package: terminews
