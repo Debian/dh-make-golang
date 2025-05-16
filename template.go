@@ -195,7 +195,6 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	fmt.Fprintf(f, "Priority: optional\n")
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
-	fmt.Fprintf(f, "Rules-Requires-Root: no\n")
 
 	builddeps := append([]string{
 		"debhelper-compat (= 13)",
