@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,16 +33,33 @@ var (
 // Besides returning the Debian upstream version, the "upstream" struct
 // struct fields u.version, u.commitIsh, u.hasRelease and u.isRelease
 // are also set.
+// `preferredRev` should be empty if there are no user preferences.
 // TODO: also support other VCS
-func pkgVersionFromGit(gitdir string, u *upstream, forcePrerelease bool) (string, error) {
+func pkgVersionFromGit(gitdir string, u *upstream, preferredRev string, forcePrerelease bool) (string, error) {
 	var latestTag string
 	var commitsAhead int
 
-	// Find @latest version tag (whether annotated or not)
-	cmd := exec.Command("git", "describe", "--abbrev=0", "--tags", "--exclude", "*/v*")
-	cmd.Dir = gitdir
-	if out, err := cmd.Output(); err == nil {
-		latestTag = strings.TrimSpace(string(out))
+	var cmd *exec.Cmd // the temporary shell commands we execute
+
+	// If the user specifies a valid tag as the preferred revision, that tag should be used without additional heuristics.
+	if u.rr != nil {
+		if out, err := u.rr.VCS.Tags(gitdir); err == nil && slices.Contains(out, preferredRev) {
+			latestTag = preferredRev
+		}
+	}
+
+	// Find @latest version tag (whether annotated or not) when the user
+	// (1) does not specify a version tag, or
+	// (2) specifies an invalid version tag.
+	if len(latestTag) == 0 {
+		cmd = exec.Command("git", "describe", "--abbrev=0", "--tags", "--exclude", "*/v*")
+		cmd.Dir = gitdir
+		if out, err := cmd.Output(); err == nil {
+			latestTag = strings.TrimSpace(string(out))
+		}
+	}
+
+	if len(latestTag) > 0 {
 		u.hasRelease = true
 		u.tag = latestTag
 		log.Printf("Found latest tag %q", latestTag)
