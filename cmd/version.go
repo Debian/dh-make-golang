@@ -1,12 +1,9 @@
-package main
+package cmd
 
 import (
 	"fmt"
 	"runtime"
 )
-
-// Program name
-const program = "dh-make-golang"
 
 // Version represents the dh-make-golang build version.
 type Version struct {

@@ -1,4 +1,5 @@
 dh-make-golang
+dh-make-golang.1
 _build/
 *~
 *.sw[op]
