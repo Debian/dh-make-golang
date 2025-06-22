@@ -85,6 +85,50 @@ func get(gopath, repodir, repo, rev string) error {
 	return err
 }
 
+// getModuleDir returns the path of the directory containing a module for the
+// given GOPATH and repository dir values.
+func getModuleDir(gopath, repodir, module string) (string, error) {
+	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", module)
+	cmd.Dir = repodir
+	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{
+		"GOPATH=" + gopath,
+	}, passthroughEnv()...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
+	}
+	return string(bytes.TrimSpace(out)), nil
+}
+
+// getDirectDependencies returns a set of all the direct dependencies of a
+// module for the given GOPATH and repository dir values. It first finds the
+// directory that contains this module, then uses go list in this directory
+// to get its direct dependencies.
+func getDirectDependencies(gopath, repodir, module string) (map[string]bool, error) {
+	dir, err := getModuleDir(gopath, repodir, module)
+	if err != nil {
+		return nil, fmt.Errorf("get module dir: %w", err)
+	}
+	cmd := exec.Command("go", "list", "-m", "-f", "{{if not .Indirect}}{{.Path}}{{end}}", "all")
+	cmd.Dir = dir
+	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{
+		"GOPATH=" + gopath,
+	}, passthroughEnv()...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
+	}
+	out = bytes.TrimRight(out, "\n")
+	lines := strings.Split(string(out), "\n")
+	deps := make(map[string]bool, len(lines))
+	for _, line := range lines {
+		deps[line] = true
+	}
+	return deps, nil
+}
+
 func removeVendor(gopath string) (found bool, _ error) {
 	err := filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -203,6 +247,12 @@ func estimate(importpath, revision string) error {
 		return fmt.Errorf("go mod graph: args: %v; error: %w", cmd.Args, err)
 	}
 
+	// Get direct dependencies, to filter out indirect ones from go mod graph output
+	directDeps, err := getDirectDependencies(gopath, repodir, importpath)
+	if err != nil {
+		return fmt.Errorf("get direct dependencies: %w", err)
+	}
+
 	// Retrieve already-packaged ones
 	golangBinaries, err := getGolangBinaries()
 	if err != nil {
@@ -227,13 +277,28 @@ func estimate(importpath, revision string) error {
 		// imported it, separated by a single space. The module names
 		// can have a version information delimited by the @ character
 		src, dep, _ := strings.Cut(line, " ")
+		// Get the module names without their version, as we do not use
+		// this information.
 		// The root module is the only one that does not have a version
 		// indication with @ in the output of go mod graph. We use this
 		// to filter out the depencencies of the "dummymod" module.
-		if mod, _, found := strings.Cut(src, "@"); !found {
+		dep, _, _ = strings.Cut(dep, "@")
+		src, _, found := strings.Cut(src, "@")
+		if !found {
 			continue
-		} else if mod == importpath || strings.HasPrefix(mod, importpath+"/") {
+		}
+		// Due to importing all packages of the estimated module in a
+		// dummy one, some modules can depend on submodules of the
+		// estimated one. We do as if they are dependencies of the
+		// root one.
+		if strings.HasPrefix(src, importpath+"/") {
 			src = importpath
+		}
+		// go mod graph also lists indirect dependencies as dependencies
+		// of the current module, so we filter them out. They will still
+		// appear later.
+		if src == importpath && !directDeps[dep] {
+			continue
 		}
 		depNode, ok := nodes[dep]
 		if !ok {
@@ -255,10 +320,7 @@ func estimate(importpath, revision string) error {
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
-		// Get the module name without its version, as go mod graph
-		// can return multiple times the same module with different
-		// versions.
-		mod, _, _ := strings.Cut(n.name, "@")
+		mod := n.name
 		count, isNeeded := needed[mod]
 		if isNeeded {
 			count++
