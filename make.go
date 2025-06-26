@@ -930,7 +930,7 @@ func execMake(args []string, usage func()) {
 
 	var (
 		eg             errgroup.Group
-		golangBinaries map[string]string // map[goImportPath]debianBinaryPackage
+		golangBinaries map[string]debianPackage // map[goImportPath]debianPackage
 	)
 
 	// TODO: also check whether there already is a git repository on salsa.
@@ -963,9 +963,9 @@ func execMake(args []string, usage func()) {
 		log.Printf("Could not check for existing Go packages in Debian: %v", err)
 	}
 
-	if debbin, ok := golangBinaries[gopkg]; ok {
+	if debpkg, ok := golangBinaries[gopkg]; ok {
 		log.Printf("WARNING: A package called %q is already in Debian! See https://tracker.debian.org/pkg/%s\n",
-			debbin, debbin)
+			debpkg.binary, debpkg.source)
 	}
 
 	orig := fmt.Sprintf("%s_%s.orig.tar.%s", debsrc, u.version, u.compression)
@@ -993,12 +993,12 @@ func execMake(args []string, usage func()) {
 			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, "", allowUnknownHoster)+"-dev")
 			continue
 		}
-		bin, ok := golangBinaries[dep]
+		pkg, ok := golangBinaries[dep]
 		if !ok {
 			log.Printf("Build-Dependency %q is not yet available in Debian, or has not yet been converted to use XS-Go-Import-Path in debian/control", dep)
 			continue
 		}
-		debdependencies = append(debdependencies, bin)
+		debdependencies = append(debdependencies, pkg.binary)
 	}
 
 	if err := writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion,

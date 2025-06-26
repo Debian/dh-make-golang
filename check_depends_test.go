@@ -111,10 +111,10 @@ require (
 		t.Fatalf("Could not create dummy Debian package: %v", err)
 	}
 
-	deps, err := parseGoModDependencies(filepath.Join(tmpDir, "dummy-package"), map[string]string{
-		"github.com/charmbracelet/glamour": "golang-github-charmbracelet-glamour-dev",
-		"github.com/google/go-github":      "golang-github-google-go-github-dev",
-		"github.com/gregjones/httpcache":   "golang-github-gregjones-httpcache-dev",
+	deps, err := parseGoModDependencies(filepath.Join(tmpDir, "dummy-package"), map[string]debianPackage{
+		"github.com/charmbracelet/glamour": {binary: "golang-github-charmbracelet-glamour-dev", source: "golang-github-charmbracelet-glamour"},
+		"github.com/google/go-github":      {binary: "golang-github-google-go-github-dev", source: "golang-github-google-go-github"},
+		"github.com/gregjones/httpcache":   {binary: "golang-github-gregjones-httpcache-dev", source: "golang-github-gregjones-httpcache"},
 	})
 	if err != nil {
 		t.Fatalf("Could not parse go.mod dependencies: %v", err)
