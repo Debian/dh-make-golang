@@ -580,6 +580,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"git.sr.ht":            "sourcehut",
 		"github.com":           "github",
 		"gitlab.com":           "gitlab",
+		"go.bug.st":            "bugst",
 		"go.cypherpunks.ru":    "cypherpunks",
 		"go.mongodb.org":       "mongodb",
 		"go.opentelemetry.io":  "opentelemetry",
