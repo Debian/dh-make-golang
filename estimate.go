@@ -142,6 +142,13 @@ func trackerLink(pkg string) string {
 	return fmt.Sprintf("\033]8;;https://tracker.debian.org/pkg/%[1]s\033\\%[1]s\033]8;;\033\\", pkg)
 }
 
+// newPackageLine generates a line for packages in NEW, including an OSC 8
+// hyperlink to the FTP masters website for the given Debian package.
+func newPackageLine(indent int, mod, debpkg, version string) string {
+	const format = "%s\033[36m%s (\033]8;;https://ftp-master.debian.org/new/%s_%s.html\033\\in NEW\033]8;;\033\\)\033[0m"
+	return fmt.Sprintf(format, strings.Repeat("  ", indent), mod, debpkg, version)
+}
+
 func estimate(importpath, revision string) error {
 	removeTemp := func(path string) {
 		if err := forceRemoveAll(path); err != nil {
@@ -267,8 +274,8 @@ func estimate(importpath, revision string) error {
 				return
 			}
 			if pkg, ok := golangBinaries[mod]; ok {
-				if _, ok := sourcesInNew[pkg.source]; ok {
-					line := fmt.Sprintf("%s\033[36m%s (in NEW)\033[0m", strings.Repeat("  ", indent), mod)
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
 					lines = append(lines, line)
 				}
 				return // already packaged in Debian
@@ -291,8 +298,8 @@ func estimate(importpath, revision string) error {
 				} else {
 					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
 				}
-				if _, ok := sourcesInNew[pkg.source]; ok {
-					line := fmt.Sprintf("%s\033[36m%s (in NEW)\033[0m", strings.Repeat("  ", indent), mod)
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
 					lines = append(lines, line)
 				}
 				return
@@ -304,8 +311,8 @@ func estimate(importpath, revision string) error {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
 				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
-				if _, ok := sourcesInNew[pkg.source]; ok {
-					line := fmt.Sprintf("%s\033[36m%s (in NEW)\033[0m", strings.Repeat("  ", indent), mod)
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
 					lines = append(lines, line)
 				}
 				return
