@@ -112,7 +112,7 @@ func findGitHubOwnerRepo(gopkg string) (string, error) {
 					return ""
 				}
 				if repoMatch := githubRegexp.FindStringSubmatch(f[2]); repoMatch != nil {
-					return repoMatch[1]
+					return strings.TrimSuffix(repoMatch[1], ".git")
 				}
 			}
 			return ""
