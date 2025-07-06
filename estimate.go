@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +17,10 @@ import (
 	"golang.org/x/tools/go/vcs"
 )
 
+const (
+	sourcesInNewURL = "https://api.ftp-master.debian.org/sources_in_suite/new"
+)
+
 // majorVersionRegexp checks if an import path contains a major version suffix.
 var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
@@ -23,6 +29,29 @@ var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 var moduleBlocklist = map[string]string{
 	"github.com/arduino/go-win32-utils": "Windows only",
 	"github.com/Microsoft/go-winio":     "Windows only",
+}
+
+func getSourcesInNew() (map[string]string, error) {
+	sourcesInNew := make(map[string]string)
+
+	resp, err := http.Get(sourcesInNewURL)
+	if err != nil {
+		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+	}
+	if got, want := resp.StatusCode, http.StatusOK; got != want {
+		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
+	}
+	var pkgs []struct {
+		Source  string `json:"source"`
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+	for _, pkg := range pkgs {
+		sourcesInNew[pkg.Source] = pkg.Version
+	}
+	return sourcesInNew, nil
 }
 
 func get(gopath, repodir, repo, rev string) error {
@@ -97,20 +126,27 @@ func otherVersions(mod string) (mods []string) {
 // findOtherVersion search in m for potential other versions of the given
 // module and returns the number of the major version found, 0 if not,
 // along with the corresponding package name.
-func findOtherVersion(m map[string]string, mod string) (int, string) {
+func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackage) {
 	versions := otherVersions(mod)
 	for i, version := range versions {
 		if pkg, ok := m[version]; ok {
 			return len(versions) - i, pkg
 		}
 	}
-	return 0, ""
+	return 0, debianPackage{}
 }
 
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
 // package name.
 func trackerLink(pkg string) string {
 	return fmt.Sprintf("\033]8;;https://tracker.debian.org/pkg/%[1]s\033\\%[1]s\033]8;;\033\\", pkg)
+}
+
+// newPackageLine generates a line for packages in NEW, including an OSC 8
+// hyperlink to the FTP masters website for the given Debian package.
+func newPackageLine(indent int, mod, debpkg, version string) string {
+	const format = "%s\033[36m%s (\033]8;;https://ftp-master.debian.org/new/%s_%s.html\033\\in NEW\033]8;;\033\\)\033[0m"
+	return fmt.Sprintf(format, strings.Repeat("  ", indent), mod, debpkg, version)
 }
 
 func estimate(importpath, revision string) error {
@@ -170,7 +206,11 @@ func estimate(importpath, revision string) error {
 	// Retrieve already-packaged ones
 	golangBinaries, err := getGolangBinaries()
 	if err != nil {
-		return nil
+		return fmt.Errorf("get golang debian packages: %w", err)
+	}
+	sourcesInNew, err := getSourcesInNew()
+	if err != nil {
+		return fmt.Errorf("get packages in new: %w", err)
 	}
 
 	// Build a graph in memory from the output of go mod graph
@@ -233,7 +273,11 @@ func estimate(importpath, revision string) error {
 			if mod == "go" || mod == "toolchain" {
 				return
 			}
-			if _, ok := golangBinaries[mod]; ok {
+			if pkg, ok := golangBinaries[mod]; ok {
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
+					lines = append(lines, line)
+				}
 				return // already packaged in Debian
 			}
 			var repoRoot string
@@ -250,9 +294,13 @@ func estimate(importpath, revision string) error {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
 				if v == 1 {
-					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg))
+					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg.source))
 				} else {
-					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg))
+					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
+				}
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
+					lines = append(lines, line)
 				}
 				return
 			}
@@ -262,7 +310,11 @@ func estimate(importpath, revision string) error {
 			if pkg, ok := golangBinaries[repoRoot]; ok {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
-				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg))
+				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
+				if version, ok := sourcesInNew[pkg.source]; ok {
+					line := newPackageLine(indent, mod, pkg.source, version)
+					lines = append(lines, line)
+				}
 				return
 			}
 			// Ignore modules from the blocklist.

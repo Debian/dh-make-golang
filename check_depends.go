@@ -91,7 +91,7 @@ func execCheckDepends(args []string) {
 // parseGoModDependencies parse ALL dependencies listed in go.mod
 // i.e. it returns the one defined in go.mod as well as the transitively ones
 // TODO: this may not be the best way of doing thing since it requires the package to be converted to go module
-func parseGoModDependencies(directory string, goBinaries map[string]string) ([]dependency, error) {
+func parseGoModDependencies(directory string, goBinaries map[string]debianPackage) ([]dependency, error) {
 	b, err := os.ReadFile(filepath.Join(directory, "go.mod"))
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func parseGoModDependencies(directory string, goBinaries map[string]string) ([]d
 			}
 
 			if val, exists := goBinaries[rr.Root]; exists {
-				packageName = val
+				packageName = val.binary
 			}
 
 			dependencies = append(dependencies, dependency{

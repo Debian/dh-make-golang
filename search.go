@@ -15,8 +15,13 @@ const (
 	golangBinariesURL = "https://api.ftp-master.debian.org/binary/by_metadata/Go-Import-Path"
 )
 
-func getGolangBinaries() (map[string]string, error) {
-	golangBinaries := make(map[string]string)
+type debianPackage struct {
+	binary string
+	source string
+}
+
+func getGolangBinaries() (map[string]debianPackage, error) {
+	golangBinaries := make(map[string]debianPackage)
 
 	resp, err := http.Get(golangBinariesURL)
 	if err != nil {
@@ -39,7 +44,10 @@ func getGolangBinaries() (map[string]string, error) {
 		}
 		for _, importPath := range strings.Split(pkg.XSGoImportPath, ",") {
 			// XS-Go-Import-Path can be comma-separated and contain spaces.
-			golangBinaries[strings.TrimSpace(importPath)] = pkg.Binary
+			golangBinaries[strings.TrimSpace(importPath)] = debianPackage{
+				binary: pkg.Binary,
+				source: pkg.Source,
+			}
 		}
 	}
 	return golangBinaries, nil
@@ -74,9 +82,9 @@ func execSearch(args []string) {
 		log.Fatal(err)
 	}
 
-	for importPath, binary := range golangBinaries {
+	for importPath, pkg := range golangBinaries {
 		if pattern.MatchString(importPath) {
-			fmt.Printf("%s: %s\n", binary, importPath)
+			fmt.Printf("%s: %s\n", pkg.binary, importPath)
 		}
 	}
 }
