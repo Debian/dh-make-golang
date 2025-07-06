@@ -576,6 +576,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"code.google.com":      "googlecode",
 		"codeberg.org":         "codeberg",
 		"filippo.io":           "filippo",
+		"fortio.org":           "fortio",
 		"fyne.io":              "fyne",
 		"git.sr.ht":            "sourcehut",
 		"github.com":           "github",
