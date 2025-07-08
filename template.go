@@ -336,7 +336,8 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 
 	fmt.Fprintf(f, "[DEFAULT]\n")
 	if dep14 {
-		fmt.Fprintf(f, "debian-branch = debian/sid\n")
+		fmt.Fprintf(f, "debian-branch = debian/latest\n")
+		fmt.Fprintf(f, "upstream-branch = upstream/latest\n")
 		fmt.Fprintf(f, "dist = DEP14\n")
 	}
 	if pristineTar {
