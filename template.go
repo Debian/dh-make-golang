@@ -199,6 +199,7 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 	builddeps := append([]string{
 		"debhelper-compat (= 13)",
 		"dh-sequence-golang",
+		"dpkg-build-api (= 1)",
 		"golang-any"},
 		dependencies...)
 	sort.Strings(builddeps)
