@@ -18,6 +18,7 @@ Priority: optional
 Build-Depends:
  debhelper-compat (= 13),
  dh-sequence-golang,
+ dpkg-build-api (= 1),
  golang-any,
  golang-github-advancedlogic-goose-dev,
  golang-github-fatih-color-dev,
