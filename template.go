@@ -340,8 +340,41 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 		fmt.Fprintf(f, "dist = DEP14\n")
 	}
 	if pristineTar {
-		fmt.Fprintf(f, "pristine-tar = True\n")
+		fmt.Fprintf(f, `
+# Enable pristine-tar to exactly reproduce orig tarballs
+pristine-tar = True
+`)
 	}
+
+	// Additional text to the template which is useful for 99% of the go packages
+	fmt.Fprint(f, `
+# Lax requirement to use branch name 'debian/latest' so that git-buildpackage
+# will always build using the currently checked out branch as the Debian branch.
+# This makes it easier for contributors to work with feature and bugfix
+# branches.
+ignore-branch = True
+
+# The Debian packaging git repository may also host actual upstream tags and
+# branches, typically named 'main' or 'master'. Configure the upstream tag
+# format below, so that 'gbp import-orig' will run correctly, and link tarball
+# import branch ('upstream/latest') with the equivalent upstream release tag,
+# showing a complete audit trail of what upstream released and what was imported
+# into Debian.
+#
+# TODO: Most Go packages have tags of form 'v1.0.0', but must be double-checked.
+upstream-vcs-tag = v%(version%~%-)s
+
+# If upstream publishes tarball signatures, git-buildpackage will by default
+# import and use the them. Change this to 'on' to make 'gbp import-orig' abort
+# if the signature is not found or is not valid.
+#
+# Most Go packages don't publish signatures for the tarball releases, so this is
+# not enabled by default.
+#upstream-signatures = on
+
+# Ensure the Debian maintainer signs git tags automatically.
+sign-tags = True
+`)
 	return nil
 }
 
