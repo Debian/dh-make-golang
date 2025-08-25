@@ -193,7 +193,6 @@ func writeDebianControl(dir, gopkg, debsrc, debLib, debProg string, pkgType pack
 
 	fmt.Fprintf(f, "Source: %s\n", debsrc)
 	fmt.Fprintf(f, "Section: golang\n")
-	fmt.Fprintf(f, "Priority: optional\n")
 	fmt.Fprintf(f, "Maintainer: Debian Go Packaging Team <team+pkg-go@tracker.debian.org>\n")
 	fprintfControlField(f, "Uploaders", []string{getDebianName() + " <" + getDebianEmail() + ">"})
 
