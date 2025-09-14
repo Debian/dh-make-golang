@@ -277,27 +277,25 @@ func estimate(importpath, revision string) error {
 		// imported it, separated by a single space. The module names
 		// can have a version information delimited by the @ character
 		src, dep, _ := strings.Cut(line, " ")
-		// Get the module names without their version, as we do not use
-		// this information.
 		// The root module is the only one that does not have a version
 		// indication with @ in the output of go mod graph. We use this
 		// to filter out the depencencies of the "dummymod" module.
-		dep, _, _ = strings.Cut(dep, "@")
-		src, _, found := strings.Cut(src, "@")
-		if !found {
+		if !strings.Contains(src, "@") {
 			continue
 		}
 		// Due to importing all packages of the estimated module in a
 		// dummy one, some modules can depend on submodules of the
 		// estimated one. We do as if they are dependencies of the
 		// root one.
-		if strings.HasPrefix(src, importpath+"/") {
+		pattern := fmt.Sprintf("^%s[@/]", regexp.QuoteMeta(importpath))
+		if matched, _ := regexp.MatchString(pattern, src); matched {
 			src = importpath
 		}
 		// go mod graph also lists indirect dependencies as dependencies
 		// of the current module, so we filter them out. They will still
 		// appear later.
-		if src == importpath && !directDeps[dep] {
+		depMod, _, _ := strings.Cut(dep, "@")
+		if src == importpath && !directDeps[depMod] {
 			continue
 		}
 		depNode, ok := nodes[dep]
@@ -320,7 +318,10 @@ func estimate(importpath, revision string) error {
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
-		mod := n.name
+		// Get the module name without its version, as go mod graph
+		// can return multiple times the same module with different
+		// versions.
+		mod, _, _ := strings.Cut(n.name, "@")
 		count, isNeeded := needed[mod]
 		if isNeeded {
 			count++
