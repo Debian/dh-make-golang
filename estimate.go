@@ -88,7 +88,7 @@ func get(gopath, repodir, repo, rev string) error {
 // getModuleDir returns the path of the directory containing a module for the
 // given GOPATH and repository dir values.
 func getModuleDir(gopath, repodir, module string) (string, error) {
-	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", module)
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", module)
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
