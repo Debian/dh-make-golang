@@ -88,7 +88,7 @@ func get(gopath, repodir, repo, rev string) error {
 // getModuleDir returns the path of the directory containing a module for the
 // given GOPATH and repository dir values.
 func getModuleDir(gopath, repodir, module string) (string, error) {
-	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", module)
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", module)
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
@@ -109,6 +109,12 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	dir, err := getModuleDir(gopath, repodir, module)
 	if err != nil {
 		return nil, fmt.Errorf("get module dir: %w", err)
+	}
+	// We cannot use "go list -m ..." if there is no go.mod file, but
+	// such packages are usually quite old and have few dependencies,
+	// so we return a nil map without error.
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
+		return nil, nil
 	}
 	cmd := exec.Command("go", "list", "-m", "-f", "{{if not .Indirect}}{{.Path}}{{end}}", "all")
 	cmd.Dir = dir
