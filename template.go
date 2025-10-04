@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -258,9 +259,14 @@ func writeDebianCopyright(dir, gopkg string, vendorDirs []string, hasGodeps bool
 		linebreak = "\n"
 	}
 
+	upstreamName := filepath.Base(gopkg)
+	if regexp.MustCompile(`^v\d+$`).MatchString(upstreamName) {
+		upstreamName = filepath.Base(filepath.Dir(gopkg))
+	}
+
 	fmt.Fprintf(f, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
 	fmt.Fprintf(f, "Source: %s\n", getHomepageForGopkg(gopkg))
-	fmt.Fprintf(f, "Upstream-Name: %s\n", filepath.Base(gopkg))
+	fmt.Fprintf(f, "Upstream-Name: %s\n", upstreamName)
 	fmt.Fprintf(f, "Upstream-Contact: TODO\n")
 	if len(vendorDirs) > 0 || hasGodeps {
 		fmt.Fprintf(f, "Files-Excluded:\n")
