@@ -601,6 +601,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"salsa.debian.org":     "debian",
 		"sigs.k8s.io":          "k8s-sigs",
 		"software.sslmate.com": "sslmate",
+		"zgo.at":               "zgoat",
 	}
 	parts := strings.Split(gopkg, "/")
 	fqdn := parts[0]
