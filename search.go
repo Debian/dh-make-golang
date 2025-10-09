@@ -63,7 +63,15 @@ func getGolangBinaries(opts ...getGolangBinariesOption) (map[string]debianPackag
 		}
 		for importPath := range strings.SplitSeq(pkg.MetadataValue, ",") {
 			// XS-Go-Import-Path can be comma-separated and contain spaces.
-			golangBinaries[strings.TrimSpace(importPath)] = debianPackage{
+			importPath := strings.TrimSpace(importPath)
+			// importPath might be the empty string if XS-Go-Import-Path has a leading comma, trailing
+			// comma, or extraneous internal comma.  It might also be empty if api.ftp-master.d.o returns
+			// packages where XS-Go-Import-Path is explicitly set to the empty string or to a
+			// whitespace-only string.
+			if importPath == "" {
+				continue
+			}
+			golangBinaries[importPath] = debianPackage{
 				binary: pkg.Binary,
 				source: pkg.Source,
 			}
