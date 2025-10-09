@@ -36,7 +36,7 @@ func getSourcesInNew() (map[string]string, error) {
 
 	resp, err := http.Get(sourcesInNewURL)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+		return nil, fmt.Errorf("getting %q: %w", sourcesInNewURL, err)
 	}
 	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
