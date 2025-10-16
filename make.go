@@ -511,29 +511,6 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 		return dir, fmt.Errorf("import-orig: %w", err)
 	}
 
-	{
-		f, err := os.OpenFile(filepath.Join(dir, ".gitignore"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return dir, fmt.Errorf("open .gitignore: %w", err)
-		}
-		// Beginning newline in case the file already exists and lacks a newline
-		// (not all editors enforce a newline at the end of the file):
-		if _, err := f.Write([]byte("\n/.pc/\n/_build/\n")); err != nil {
-			return dir, fmt.Errorf("write to .gitignore: %w", err)
-		}
-		if err := f.Close(); err != nil {
-			return dir, fmt.Errorf("close .gitignore: %w", err)
-		}
-	}
-
-	if err := runGitCommandIn(dir, "add", ".gitignore"); err != nil {
-		return dir, fmt.Errorf("git add .gitignore: %w", err)
-	}
-
-	if err := runGitCommandIn(dir, "commit", "-m", "Ignore _build and quilt .pc dirs via .gitignore"); err != nil {
-		return dir, fmt.Errorf("git commit (.gitignore): %w", err)
-	}
-
 	return dir, nil
 }
 
