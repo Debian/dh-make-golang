@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/mattn/go-isatty"
@@ -22,9 +21,6 @@ import (
 const (
 	sourcesInNewURL = "https://api.ftp-master.debian.org/sources_in_suite/new"
 )
-
-// majorVersionRegexp checks if an import path contains a major version suffix.
-var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
 // moduleBlocklist is a map of modules that we want to exclude from the estimate
 // output, associated with the reason why.
@@ -161,37 +157,6 @@ func removeVendor(repodir string) (found bool, _ error) {
 		return filepath.SkipDir
 	})
 	return found, err
-}
-
-// otherVersions guesses the import paths of potential other major version
-// of the given module import path, based on [majorVersionRegex].
-func otherVersions(mod string) (mods []string) {
-	matches := majorVersionRegexp.FindStringSubmatch(mod)
-	if matches == nil {
-		return
-	}
-	matchFull, matchSep, matchVer := matches[0], matches[1], matches[2]
-	matchIndex := len(mod) - len(matchFull)
-	prefix := mod[:matchIndex]
-	version, _ := strconv.Atoi(matchVer)
-	for v := version - 1; v > 1; v-- {
-		mods = append(mods, prefix+matchSep+"v"+strconv.Itoa(v))
-	}
-	mods = append(mods, prefix)
-	return
-}
-
-// findOtherVersion search in m for potential other versions of the given
-// module and returns the number of the major version found, 0 if not,
-// along with the corresponding package name.
-func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackage) {
-	versions := otherVersions(mod)
-	for i, version := range versions {
-		if pkg, ok := m[version]; ok {
-			return len(versions) - i, pkg
-		}
-	}
-	return 0, debianPackage{}
 }
 
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
@@ -364,21 +329,6 @@ func estimate(importpath, revision string) error {
 				repoRoot = mod
 			} else {
 				repoRoot = rr.Root
-			}
-			// Check for potential other major versions already in Debian.
-			v, pkg := findOtherVersion(golangBinaries, mod)
-			if v != 0 {
-				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
-				if v == 1 {
-					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg.source))
-				} else {
-					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
-				}
-				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
-				}
-				return
 			}
 			// When multiple modules are developped in the same repo,
 			// the repo root is often used as the import path metadata
