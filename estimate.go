@@ -362,13 +362,8 @@ func estimate(importpath, revision string) error {
 			// Check for potential other major versions already in Debian.
 			if p, pkg := bestOtherMaj(packagedByModPathPrefix, mod); p != "" {
 				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
 				log.Printf("See %v for inspiration (it packages module %v) when packaging %v",
 					trackerLink(pkg.source), p, mod)
-				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
-				}
-				return
 			}
 			// Ignore modules from the blocklist.
 			if reason, found := moduleBlocklist[mod]; found {
