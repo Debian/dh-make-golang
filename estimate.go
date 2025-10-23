@@ -136,8 +136,8 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	return deps, nil
 }
 
-func removeVendor(gopath string) (found bool, _ error) {
-	err := filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
+func removeVendor(repodir string) (found bool, _ error) {
+	err := filepath.Walk(repodir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
