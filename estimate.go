@@ -328,11 +328,9 @@ func estimate(importpath, revision string) error {
 		// can return multiple times the same module with different
 		// versions.
 		mod, _, _ := strings.Cut(n.name, "@")
-		count, isNeeded := needed[mod]
-		if isNeeded {
-			count++
-			needed[mod] = count
-			lines = append(lines, fmt.Sprintf("%s\033[90m%s (%d)\033[0m", strings.Repeat("  ", indent), mod, count))
+		if needed[mod] > 0 {
+			needed[mod]++
+			lines = append(lines, fmt.Sprintf("%s\033[90m%s (%d)\033[0m", strings.Repeat("  ", indent), mod, needed[mod]))
 		} else if seen[mod] {
 			return
 		} else {
