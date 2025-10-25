@@ -11,9 +11,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -31,17 +33,11 @@ var moduleBlocklist = map[string]string{
 	"github.com/Microsoft/go-winio":     "Windows only",
 }
 
-func cyanf(format string, args ...any) string {
-	return "\033[36m" + fmt.Sprintf(format, args...) + "\033[0m"
-}
-
-func hiblackf(format string, args ...any) string {
-	return "\033[90m" + fmt.Sprintf(format, args...) + "\033[0m"
-}
-
-func hyperlink(url, txt string) string {
-	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, txt)
-}
+var (
+	cyanf     = fmt.Sprintf
+	hiblackf  = fmt.Sprintf
+	hyperlink = func(url, txt string) string { return txt }
+)
 
 func getSourcesInNew() (map[string]string, error) {
 	sourcesInNew := make(map[string]string)
@@ -452,9 +448,41 @@ func execEstimate(args []string) {
 			"to estimate, defaulting to the default behavior of go get.\n"+
 			"Useful in case you do not want to estimate the latest version.")
 
+	validColorModes := []string{"auto", "never", "always"}
+	autoColor := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb" &&
+		isatty.IsTerminal(os.Stdout.Fd())
+	color := autoColor
+	colorModeUsage := fmt.Sprintf("output colors according to `mode` (one of %v; default: auto)",
+		strings.Join(validColorModes, ", "))
+	fs.Func("color", colorModeUsage, func(arg string) error {
+		if !slices.Contains(validColorModes, arg) {
+			return fmt.Errorf("expected one of: %v", strings.Join(validColorModes, ", "))
+		}
+		switch arg {
+		case "auto":
+			color = autoColor
+		case "never":
+			color = false
+		case "always":
+			color = true
+		}
+		return nil
+	})
+
 	err := fs.Parse(args)
 	if err != nil {
 		log.Fatalf("parse args: %s", err)
+	}
+	if color {
+		cyanf = func(format string, args ...any) string {
+			return "\033[36m" + fmt.Sprintf(format, args...) + "\033[0m"
+		}
+		hiblackf = func(format string, args ...any) string {
+			return "\033[90m" + fmt.Sprintf(format, args...) + "\033[0m"
+		}
+		hyperlink = func(url, txt string) string {
+			return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, txt)
+		}
 	}
 
 	if fs.NArg() != 1 {
