@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
-	"golang.org/x/tools/go/vcs"
 )
 
 const (
@@ -293,7 +292,6 @@ func estimate(importpath, revision string) error {
 	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
-	rrseen := make(map[string]bool)
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
@@ -322,41 +320,13 @@ func estimate(importpath, revision string) error {
 				}
 				return // already packaged in Debian
 			}
-			var repoRoot string
-			rr, err := vcs.RepoRootForImportPath(mod, false)
-			if err != nil {
-				log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
-				repoRoot = mod
-			} else {
-				repoRoot = rr.Root
-			}
-			// When multiple modules are developped in the same repo,
-			// the repo root is often used as the import path metadata
-			// in Debian, so we do a last try with that.
-			if pkg, ok := golangBinaries[repoRoot]; ok {
-				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
-				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
-				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
-				}
-				return
-			}
 			// Ignore modules from the blocklist.
 			if reason, found := moduleBlocklist[mod]; found {
 				log.Printf("Ignoring module %s: %s", mod, reason)
 				return
 			}
-			if rrseen[repoRoot] {
-				output(hiblackf("%v", mod))
-			} else if strings.HasPrefix(mod, repoRoot) && len(mod) > len(repoRoot) {
-				suffix := mod[len(repoRoot):]
-				output(repoRoot + hiblackf("%v", suffix))
-			} else {
-				output(mod)
-			}
-			rrseen[repoRoot] = true
 			needed[mod] = 1
+			lines = append(lines, strings.Repeat("  ", indent)+mod)
 		}
 		for _, n := range n.children {
 			visit(n, indent+1)
