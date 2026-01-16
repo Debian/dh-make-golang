@@ -16,7 +16,7 @@ type Version struct {
 var currentVersion = Version{
 	major:      0,
 	minor:      8,
-	patch:      1,
+	patch:      2,
 	preRelease: "",
 }
 
