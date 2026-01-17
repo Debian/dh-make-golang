@@ -1,12 +1,9 @@
-package main
+package cmd
 
 import (
 	"fmt"
 	"runtime"
 )
-
-// Program name
-const program = "dh-make-golang"
 
 // Version represents the dh-make-golang build version.
 type Version struct {
@@ -19,7 +16,7 @@ type Version struct {
 var currentVersion = Version{
 	major:      0,
 	minor:      8,
-	patch:      2,
+	patch:      0,
 	preRelease: "",
 }
 
