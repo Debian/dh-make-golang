@@ -925,6 +925,10 @@ func execMake(args []string, usage func()) {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
 
+	if len(u.vendorDirs) > 0 || u.hasGodeps {
+		u.version += "+ds"
+	}
+
 	if pkgType == typeGuess {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
