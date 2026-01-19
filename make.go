@@ -925,6 +925,7 @@ func execMake(args []string, usage func()) {
 		log.Fatalf("Could not create a tarball of the upstream source: %v\n", err)
 	}
 
+	// vendorDirs refers to the upstream vendor/ directory which is automatically excluded during repack.
 	if len(u.vendorDirs) > 0 || u.hasGodeps {
 		u.version += "+ds"
 	}
