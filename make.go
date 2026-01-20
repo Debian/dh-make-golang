@@ -927,7 +927,7 @@ func execMake(args []string, usage func()) {
 
 	// vendorDirs refers to the upstream vendor/ directory which is automatically excluded during repack.
 	if len(u.vendorDirs) > 0 || u.hasGodeps {
-		u.version += "+ds"
+		u.version += "+ds1"
 	}
 
 	if pkgType == typeGuess {
