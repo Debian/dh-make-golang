@@ -24,7 +24,8 @@ var (
 
 	// uversionPrereleaseRegexp checks for upstream pre-release
 	// so that '-' can be replaced with '~' in pkgVersionFromGit.
-	// To be kept in sync with the regexp portion of uversionmanglePattern in template.go
+	// To be kept in sync with the default regex in uscan:
+	// https://manpages.debian.org/unstable/devscripts/debian-watch.5.en.html#Uversion-Mangle:
 	uversionPrereleaseRegexp = regexp.MustCompile(`(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$`)
 )
 
