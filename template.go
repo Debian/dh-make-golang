@@ -524,13 +524,27 @@ Salsa CI:
 # the setting for "Enable instance runners for this project" enabled.
 `
 
+	// Write the main Salsa CI configuration file
 	f, err := os.Create(filepath.Join(dir, "debian", "salsa-ci.yml"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
 	fmt.Fprint(f, gitlabciymlTmpl)
+
+	// Write a compatibility shim for older tooling expecting gitlab-ci.yml
+	compatPath := filepath.Join(dir, "debian", "gitlab-ci.yml")
+	fCompat, err := os.Create(compatPath)
+	if err != nil {
+		return err
+	}
+	defer fCompat.Close()
+
+	const compatContent = `# This file exists only for backwards compatibility and can be removed once if this repository CI settings have migrated to use the new file name 'salsa-ci.yml'.
+include:
+  - local: 'debian/salsa-ci.yml'
+`
+	fmt.Fprint(fCompat, compatContent)
 
 	return nil
 }
