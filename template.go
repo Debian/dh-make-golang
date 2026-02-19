@@ -489,7 +489,7 @@ include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 `
 
-	f, err := os.Create(filepath.Join(dir, "debian", "gitlab-ci.yml"))
+	f, err := os.Create(filepath.Join(dir, "debian", "salsa-ci.yml"))
 	if err != nil {
 		return err
 	}
