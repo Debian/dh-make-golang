@@ -524,7 +524,7 @@ Salsa CI:
 # the setting for "Enable instance runners for this project" enabled.
 `
 
-	f, err := os.Create(filepath.Join(dir, "debian", "gitlab-ci.yml"))
+	f, err := os.Create(filepath.Join(dir, "debian", "salsa-ci.yml"))
 	if err != nil {
 		return err
 	}
