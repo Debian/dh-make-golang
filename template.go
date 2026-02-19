@@ -50,10 +50,9 @@ func writeTemplates(dir, gopkg, debsrc, debLib, debProg, debversion string,
 		return fmt.Errorf("write rules: %w", err)
 	}
 
-	var repack bool = len(u.vendorDirs) > 0 || u.hasGodeps
-	if err := writeDebianWatch(dir, gopkg, debsrc, u.hasRelease, repack); err != nil {
-		return fmt.Errorf("write watch: %w", err)
-	}
+	// The debian/watch file is no longer needed in v5 for projects hosted on
+	// GitHub (the only type supported in dh-make-golang so far) as uscan will use
+	// the debian/upstream/metadata repository url directly
 
 	if err := writeDebianSourceFormat(dir); err != nil {
 		return fmt.Errorf("write source/format: %w", err)
@@ -361,69 +360,6 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 	return nil
 }
 
-func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) error {
-	// TODO: Support other hosters too
-	host := "github.com"
-
-	owner, repo, err := findGitHubRepo(gopkg)
-	if err != nil {
-		log.Printf("debian/watch: Unable to resolve %s to github.com, skipping\n", gopkg)
-		return nil
-	}
-	if !strings.HasPrefix(gopkg, "github.com/") {
-		log.Printf("debian/watch: %s resolves to %s/%s/%s\n", gopkg, host, owner, repo)
-	}
-
-	f, err := os.Create(filepath.Join(dir, "debian", "watch"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	filenamemanglePattern := `s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%@PACKAGE@-$1.tar.gz%`
-	uversionmanglePattern := `s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/$1~$2$3/`
-
-	if hasRelease {
-		log.Printf("Setting debian/watch to track release tarball")
-		fmt.Fprint(f, "version=4\n")
-		fmt.Fprint(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
-		fmt.Fprint(f, `      uversionmangle=`+uversionmanglePattern)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
-	} else {
-		log.Printf("Setting debian/watch to track git HEAD")
-		fmt.Fprint(f, "version=4\n")
-		fmt.Fprint(f, `opts="mode=git, pgpmode=none`)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
-		fmt.Fprint(f, "  HEAD debian\n")
-
-		// Anticipate that upstream would eventually switch to tagged releases
-		fmt.Fprint(f, "\n")
-		fmt.Fprint(f, "# Use the following when upstream starts to tag releases:\n")
-		fmt.Fprint(f, "#\n")
-		fmt.Fprint(f, "#version=4\n")
-		fmt.Fprint(f, `#opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
-		fmt.Fprint(f, `#      uversionmangle=`+uversionmanglePattern)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
-	}
-
-	return nil
-}
-
 func writeDebianPackageInstall(dir, debLib, debProg string, pkgType packageType) error {
 	if pkgType == typeLibraryProgram || pkgType == typeProgramLibrary {
 		f, err := os.Create(filepath.Join(dir, "debian", debProg+".install"))
@@ -466,6 +402,12 @@ func writeDebianUpstreamMetadata(dir, gopkg string) error {
 	defer f.Close()
 
 	fmt.Fprintf(f, "---\n")
+
+	// Add Archive line for GitHub hosted projects
+	if strings.HasPrefix(gopkg, "github.com/") {
+		fmt.Fprintf(f, "Archive: GitHub\n")
+	}
+
 	fmt.Fprintf(f, "Bug-Database: https://%s/%s/%s/issues\n", host, owner, repo)
 	fmt.Fprintf(f, "Bug-Submit: https://%s/%s/%s/issues/new\n", host, owner, repo)
 	fmt.Fprintf(f, "Repository: https://%s/%s/%s.git\n", host, owner, repo)
