@@ -204,7 +204,7 @@ func trackerLink(pkg string) string {
 // hyperlink to the FTP masters website for the given Debian package.
 func newPackageLine(mod, debpkg, version string) string {
 	url := fmt.Sprintf("https://ftp-master.debian.org/new/%v_%v.html", debpkg, version)
-	return cyanf("%v (%v)", mod, hyperlink(url, "in NEW"))
+	return cyanf("%v (%v)", mod, hyperlink(url, fmt.Sprintf("in NEW as %v %v", debpkg, version)))
 }
 
 func estimate(importpath, revision string) error {
