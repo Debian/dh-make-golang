@@ -31,6 +31,18 @@ var moduleBlocklist = map[string]string{
 	"github.com/Microsoft/go-winio":     "Windows only",
 }
 
+func cyanf(format string, args ...any) string {
+	return "\033[36m" + fmt.Sprintf(format, args...) + "\033[0m"
+}
+
+func hiblackf(format string, args ...any) string {
+	return "\033[90m" + fmt.Sprintf(format, args...) + "\033[0m"
+}
+
+func hyperlink(url, txt string) string {
+	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, txt)
+}
+
 func getSourcesInNew() (map[string]string, error) {
 	sourcesInNew := make(map[string]string)
 
@@ -189,14 +201,14 @@ func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackag
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
 // package name.
 func trackerLink(pkg string) string {
-	return fmt.Sprintf("\033]8;;https://tracker.debian.org/pkg/%[1]s\033\\%[1]s\033]8;;\033\\", pkg)
+	return hyperlink("https://tracker.debian.org/pkg/"+pkg, pkg)
 }
 
 // newPackageLine generates a line for packages in NEW, including an OSC 8
 // hyperlink to the FTP masters website for the given Debian package.
-func newPackageLine(indent int, mod, debpkg, version string) string {
-	const format = "%s\033[36m%s (\033]8;;https://ftp-master.debian.org/new/%s_%s.html\033\\in NEW\033]8;;\033\\)\033[0m"
-	return fmt.Sprintf(format, strings.Repeat("  ", indent), mod, debpkg, version)
+func newPackageLine(mod, debpkg, version string) string {
+	url := fmt.Sprintf("https://ftp-master.debian.org/new/%v_%v.html", debpkg, version)
+	return cyanf("%v (%v)", mod, hyperlink(url, "in NEW"))
 }
 
 func estimate(importpath, revision string) error {
@@ -324,13 +336,16 @@ func estimate(importpath, revision string) error {
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
+		output := func(line string) {
+			lines = append(lines, strings.Repeat("  ", indent)+line)
+		}
 		// Get the module name without its version, as go mod graph
 		// can return multiple times the same module with different
 		// versions.
 		mod, _, _ := strings.Cut(n.name, "@")
 		if needed[mod] > 0 {
 			needed[mod]++
-			lines = append(lines, fmt.Sprintf("%s\033[90m%s (%d)\033[0m", strings.Repeat("  ", indent), mod, needed[mod]))
+			output(hiblackf("%v (%d)", mod, needed[mod]))
 		} else if seen[mod] {
 			return
 		} else {
@@ -342,8 +357,7 @@ func estimate(importpath, revision string) error {
 			}
 			if pkg, ok := golangBinaries[mod]; ok {
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return // already packaged in Debian
 			}
@@ -366,8 +380,7 @@ func estimate(importpath, revision string) error {
 					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
 				}
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return
 			}
@@ -379,8 +392,7 @@ func estimate(importpath, revision string) error {
 				// but consider that it is packaged and skip the children.
 				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return
 			}
@@ -389,16 +401,14 @@ func estimate(importpath, revision string) error {
 				log.Printf("Ignoring module %s: %s", mod, reason)
 				return
 			}
-			line := strings.Repeat("  ", indent)
 			if rrseen[repoRoot] {
-				line += fmt.Sprintf("\033[90m%s\033[0m", mod)
+				output(hiblackf("%v", mod))
 			} else if strings.HasPrefix(mod, repoRoot) && len(mod) > len(repoRoot) {
 				suffix := mod[len(repoRoot):]
-				line += fmt.Sprintf("%s\033[90m%s\033[0m", repoRoot, suffix)
+				output(repoRoot + hiblackf("%v", suffix))
 			} else {
-				line += mod
+				output(mod)
 			}
-			lines = append(lines, line)
 			rrseen[repoRoot] = true
 			needed[mod] = 1
 		}
