@@ -36,8 +36,9 @@ func getSourcesInNew() (map[string]string, error) {
 
 	resp, err := http.Get(sourcesInNewURL)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+		return nil, fmt.Errorf("getting %q: %w", sourcesInNewURL, err)
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
 	}
@@ -135,8 +136,8 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	return deps, nil
 }
 
-func removeVendor(gopath string) (found bool, _ error) {
-	err := filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
+func removeVendor(repodir string) (found bool, _ error) {
+	err := filepath.Walk(repodir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
