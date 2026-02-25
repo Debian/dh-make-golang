@@ -203,7 +203,7 @@ func trackerLink(pkg string) string {
 // newPackageLine generates a line for packages in NEW, including an OSC 8
 // hyperlink to the FTP masters website for the given Debian package.
 func newPackageLine(mod, debpkg, version string) string {
-	url := fmt.Sprintf("https://ftp-master.debian.org/new/%v_%v.html", debpkg, version)
+	url := "https://dfsg-new-queue.debian.org/reviews/" + debpkg
 	return cyanf("%v (%v)", mod, hyperlink(url, fmt.Sprintf("in NEW as %v %v", debpkg, version)))
 }
 
