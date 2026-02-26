@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,29 @@ type dependency struct {
 }
 
 func execCheckDepends(args []string) {
+	fs := flag.NewFlagSet("check-depends", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s check-depends\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Compares the Go module dependencies in go.mod against\n")
+		fmt.Fprintf(os.Stderr, "the Debian packages available in the archive.\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Reports:\n")
+		fmt.Fprintf(os.Stderr, "  NEW: Dependencies in go.mod not yet packaged in Debian\n")
+		fmt.Fprintf(os.Stderr, "  RM:  Debian packages in d/control no longer needed by go.mod\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "This command takes no arguments.\n")
+	}
+
+	if err := fs.Parse(args); err != nil {
+		log.Fatal(err)
+	}
+
+	if fs.NArg() > 0 {
+		fs.Usage()
+		os.Exit(1)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("error while getting current directory: %s", err)
