@@ -22,16 +22,17 @@ type dependency struct {
 func execCheckDepends(args []string) {
 	fs := flag.NewFlagSet("check-depends", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s check-depends\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Compares the Go module dependencies in go.mod against\n")
-		fmt.Fprintf(os.Stderr, "the Debian packages available in the archive.\n")
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "Reports:\n")
-		fmt.Fprintf(os.Stderr, "  NEW: Dependencies in go.mod not yet packaged in Debian\n")
-		fmt.Fprintf(os.Stderr, "  RM:  Debian packages in d/control no longer needed by go.mod\n")
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintf(os.Stderr, "This command takes no arguments.\n")
+		fmt.Fprintf(os.Stderr, `Usage: %s check-depends
+
+Compares the Go module dependencies in go.mod against
+the Debian packages available in the archive.
+
+Reports:
+  NEW: Dependencies in go.mod not yet packaged in Debian
+  RM:  Debian packages in d/control no longer needed by go.mod
+
+This command takes no arguments.
+`, os.Args[0])
 	}
 
 	if err := fs.Parse(args); err != nil {

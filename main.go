@@ -15,24 +15,28 @@ var (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "%s\n", buildVersionString())
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s is a tool that converts Go packages into Debian package source.\n", program)
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "Usage:\n\t%s [globalflags] <command> [flags] <args>\n", program)
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s commands:\n", program)
-	fmt.Fprintf(os.Stderr, "\tmake\t\t\tcreate a Debian package\n")
-	fmt.Fprintf(os.Stderr, "\tsearch\t\t\tsearch Debian for already-existing packages\n")
-	fmt.Fprintf(os.Stderr, "\testimate\t\testimate the amount of work for a package\n")
-	fmt.Fprintf(os.Stderr, "\tcreate-salsa-project\tcreate a project for hosting Debian packaging\n")
-	fmt.Fprintf(os.Stderr, "\tclone\t\t\tclone a Go package from Salsa\n")
-	fmt.Fprintf(os.Stderr, "\tcheck-depends\t\tcompare go.mod and d/control to check for changes\n")
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "For backwards compatibility, when no command is specified,\nthe make command is executed.\n")
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "To learn more about a command, run \"%s <command> -help\",\ne.g. \"%s make -help\"\n", program, program)
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, `%s
+
+%s is a tool that converts Go packages into Debian package source.
+
+Usage:
+	%s [globalflags] <command> [flags] <args>
+
+%s commands:
+	make			create a Debian package
+	search			search Debian for already-existing packages
+	estimate		estimate the amount of work for a package
+	create-salsa-project	create a project for hosting Debian packaging
+	clone			clone a Go package from Salsa
+	check-depends		compare go.mod and d/control to check for changes
+
+For backwards compatibility, when no command is specified,
+the make command is executed.
+
+To learn more about a command, run "%s <command> -help",
+e.g. "%s make -help"
+
+`, buildVersionString(), program, program, program, program, program)
 }
 
 func main() {
