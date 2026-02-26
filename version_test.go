@@ -32,7 +32,8 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Fatalf("Could not write temp file %q: %v", tempfile, err)
 	}
 
-	gitCmdOrFatal(t, tempdir, "init")
+	// Suppress git hint about default branch name by setting init.defaultBranch
+	gitCmdOrFatal(t, tempdir, "init", "--initial-branch=master")
 	gitCmdOrFatal(t, tempdir, "config", "user.email", "unittest@example.com")
 	gitCmdOrFatal(t, tempdir, "config", "user.name", "Unit Test")
 	gitCmdOrFatal(t, tempdir, "add", "test")
