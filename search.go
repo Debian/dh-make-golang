@@ -26,6 +26,9 @@ type ftpMasterApiResult struct {
 	Source        string `json:"source"`
 }
 
+// Entries in XS-Go-Import-Path are separated by commas and/or spaces.
+var listSep = regexp.MustCompile(`[,\s]+`)
+
 type getGolangBinariesConfig struct {
 	url string
 }
@@ -61,13 +64,9 @@ func getGolangBinaries(opts ...getGolangBinariesOption) (map[string]debianPackag
 		if !strings.HasSuffix(pkg.Binary, "-dev") {
 			continue // skip -dbgsym packages etc.
 		}
-		for importPath := range strings.SplitSeq(pkg.MetadataValue, ",") {
-			// XS-Go-Import-Path can be comma-separated and contain spaces.
-			importPath := strings.TrimSpace(importPath)
-			// importPath might be the empty string if XS-Go-Import-Path has a leading comma, trailing
-			// comma, or extraneous internal comma.  It might also be empty if api.ftp-master.d.o returns
-			// packages where XS-Go-Import-Path is explicitly set to the empty string or to a
-			// whitespace-only string.
+		for _, importPath := range listSep.Split(pkg.MetadataValue, -1) {
+			// importPath might be the empty string if XS-Go-Import-Path has a leading or trailing
+			// listSep, or the entire string matches listSep*.
 			if importPath == "" {
 				continue
 			}
