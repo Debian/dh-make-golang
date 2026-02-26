@@ -165,6 +165,24 @@ func TestGetGolangBinaries(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "whitespace separated",
+			results: []ftpMasterApiResult{{
+				Binary:        "golang-example-foo-dev",
+				MetadataValue: "example.com/foo \n\texample.com/bar",
+				Source:        "golang-example-foo",
+			}},
+			want: map[string]debianPackage{
+				"example.com/foo": {
+					binary: "golang-example-foo-dev",
+					source: "golang-example-foo",
+				},
+				"example.com/bar": {
+					binary: "golang-example-foo-dev",
+					source: "golang-example-foo",
+				},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
