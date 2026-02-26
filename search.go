@@ -20,22 +20,40 @@ type debianPackage struct {
 	source string
 }
 
-func getGolangBinaries() (map[string]debianPackage, error) {
+type ftpMasterApiResult struct {
+	Binary        string `json:"binary"`
+	MetadataValue string `json:"metadata_value"`
+	Source        string `json:"source"`
+}
+
+type getGolangBinariesConfig struct {
+	url string
+}
+
+type getGolangBinariesOption func(cfg *getGolangBinariesConfig)
+
+func getGolangBinariesUrl(url string) getGolangBinariesOption {
+	return func(cfg *getGolangBinariesConfig) {
+		cfg.url = url
+	}
+}
+
+func getGolangBinaries(opts ...getGolangBinariesOption) (map[string]debianPackage, error) {
+	cfg := &getGolangBinariesConfig{url: golangBinariesURL}
+	for _, opt := range opts {
+		opt(cfg)
+	}
 	golangBinaries := make(map[string]debianPackage)
 
-	resp, err := http.Get(golangBinariesURL)
+	resp, err := http.Get(cfg.url)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+		return nil, fmt.Errorf("getting %q: %w", cfg.url, err)
 	}
 	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
 	}
-	var pkgs []struct {
-		Binary         string `json:"binary"`
-		XSGoImportPath string `json:"metadata_value"`
-		Source         string `json:"source"`
-	}
+	var pkgs []ftpMasterApiResult
 	if err := json.NewDecoder(resp.Body).Decode(&pkgs); err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
@@ -43,7 +61,7 @@ func getGolangBinaries() (map[string]debianPackage, error) {
 		if !strings.HasSuffix(pkg.Binary, "-dev") {
 			continue // skip -dbgsym packages etc.
 		}
-		for importPath := range strings.SplitSeq(pkg.XSGoImportPath, ",") {
+		for importPath := range strings.SplitSeq(pkg.MetadataValue, ",") {
 			// XS-Go-Import-Path can be comma-separated and contain spaces.
 			golangBinaries[strings.TrimSpace(importPath)] = debianPackage{
 				binary: pkg.Binary,
