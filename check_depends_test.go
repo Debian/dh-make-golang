@@ -2,8 +2,10 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -136,5 +138,33 @@ require (
 
 	if !reflect.DeepEqual(deps, want) {
 		t.Fatalf("Wrong dependencies returned (got %v want %v)", deps, want)
+	}
+}
+
+func TestCheckDependsHelp(t *testing.T) {
+	// Test that --help flag works and shows usage information
+	// We run via 'go run' to avoid needing a pre-built binary
+	cmd := exec.Command("go", "run", ".", "check-depends", "--help")
+	output, err := cmd.CombinedOutput()
+
+	// The -help flag causes flag.ExitOnError to exit with code 0, which exec sees as nil error
+	if err != nil {
+		t.Fatalf("check-depends --help failed: %v\nOutput: %s", err, string(output))
+	}
+
+	outputStr := string(output)
+	expectedStrings := []string{
+		"Usage:",
+		"check-depends",
+		"go.mod",
+		"d/control",
+		"NEW:",
+		"RM:",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Help output missing expected string %q\nFull output:\n%s", expected, outputStr)
+		}
 	}
 }
