@@ -88,7 +88,7 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 	gr.Go(func() error {
 		for {
 			clear()
-			fmt.Printf("%s: %s", prefix, humanizeBytes(after))
+			fmt.Print(render())
 			select {
 			case <-quit:
 			case <-time.After(250 * time.Millisecond):
