@@ -42,25 +42,29 @@ func diskUsage(path string) int64 {
 	return usage
 }
 
-// monitorDiskUsage periodically prints the disk usage of the given directory or file until a read
-// from the provided channel completes.
-func monitorDiskUsage(prefix, path string, done chan struct{}) {
+// monitorDiskUsage starts a background goroutine that periodically prints the disk usage of the
+// given directory or file.  Returns a done callback that stops the periodic printing.
+func monitorDiskUsage(prefix, path string) func() {
 	if !isatty.IsTerminal(os.Stdout.Fd()) {
-		return
+		return func() {}
 	}
-	// previous holds how many bytes the previous line contained
-	// so that we can clear it in its entirety.
-	var previous int
-	for {
-		usage := diskUsage(path)
-		fmt.Printf("\r%s", strings.Repeat(" ", previous))
-		previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
-		select {
-		case <-done:
-			fmt.Printf("\r")
-			return
-		case <-time.After(250 * time.Millisecond):
-			break
+	done := make(chan struct{})
+	go func() {
+		// previous holds how many bytes the previous line contained
+		// so that we can clear it in its entirety.
+		var previous int
+		for {
+			usage := diskUsage(path)
+			fmt.Printf("\r%s", strings.Repeat(" ", previous))
+			previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
+			select {
+			case <-done:
+				fmt.Printf("\r")
+				return
+			case <-time.After(250 * time.Millisecond):
+				break
+			}
 		}
-	}
+	}()
+	return func() { close(done) }
 }
