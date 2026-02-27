@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/mattn/go-isatty"
@@ -61,20 +60,21 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 	}
 	gr := &errgroup.Group{}
 	quit := make(chan struct{})
+	clear := func() {
+		const csi = "\033["   // Control Sequence Introducer
+		const el0 = csi + "K" // Erase in Line 0 (clear from cursor to end of line)
+		fmt.Print("\r" + el0)
+	}
 	gr.Go(func() error {
-		// previous holds how many bytes the previous line contained
-		// so that we can clear it in its entirety.
-		var previous int
 		for {
 			usage, err := diskUsage(path)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("\r%s", strings.Repeat(" ", previous))
-			previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
+			clear()
+			fmt.Printf("%s: %s", prefix, humanizeBytes(usage))
 			select {
 			case <-quit:
-				fmt.Printf("\r")
 				return nil
 			case <-time.After(250 * time.Millisecond):
 				break
@@ -87,6 +87,7 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 		if errp != nil && *errp == nil {
 			*errp = err
 		}
+		clear()
 		return err
 	}
 }
