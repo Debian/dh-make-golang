@@ -64,9 +64,7 @@ func getSourcesInNew() (map[string]string, error) {
 }
 
 func get(gopath, repodir, repo, rev string) error {
-	done := make(chan struct{})
-	defer close(done)
-	go monitorDiskUsage("go get", filepath.Join(gopath, "pkg", "mod", "cache"), done)
+	defer monitorDiskUsage("go get", filepath.Join(gopath, "pkg", "mod", "cache"))()
 
 	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
 	// the arguments to “go get” are packages, not repositories. Hence, we

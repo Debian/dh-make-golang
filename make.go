@@ -122,9 +122,7 @@ type upstream struct {
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
-	done := make(chan struct{})
-	defer close(done)
-	go monitorDiskUsage("go get", filepath.Join(gopath, "src"), done)
+	defer monitorDiskUsage("go get", filepath.Join(gopath, "src"))()
 
 	rr, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
@@ -175,16 +173,9 @@ func (u *upstream) tarballFromHoster() error {
 	if err != nil {
 		return err
 	}
-
-	done := make(chan struct{})
-	go monitorDiskUsage("Download", u.tarPath, done)
-
+	defer monitorDiskUsage("Download", u.tarPath)()
 	log.Printf("Downloading %s", tarURL)
-	err = downloadFile(u.tarPath, tarURL)
-
-	close(done)
-
-	return err
+	return downloadFile(u.tarPath, tarURL)
 }
 
 func (u *upstream) tar(gopath, repo string) error {
