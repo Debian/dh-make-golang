@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -58,6 +59,25 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 	if !isatty.IsTerminal(os.Stdout.Fd()) {
 		return func() error { return nil }
 	}
+	before, err := diskUsage(path)
+	if err != nil {
+		return func() error {
+			if errp != nil && *errp == nil {
+				*errp = err
+			}
+			return err
+		}
+	}
+	after := before
+	render := func() string {
+		hDiff := humanizeBytes(after)
+		total := ""
+		if before != 0 {
+			total = fmt.Sprintf(" (%s total)", hDiff)
+			hDiff = humanizeBytes(after - before)
+		}
+		return fmt.Sprintf("%s: %s added%s", prefix, hDiff, total)
+	}
 	gr := &errgroup.Group{}
 	quit := make(chan struct{})
 	clear := func() {
@@ -67,27 +87,33 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 	}
 	gr.Go(func() error {
 		for {
-			usage, err := diskUsage(path)
-			if err != nil {
+			clear()
+			fmt.Printf("%s: %s", prefix, humanizeBytes(after))
+			select {
+			case <-quit:
+			case <-time.After(250 * time.Millisecond):
+			}
+			var err error
+			if after, err = diskUsage(path); err != nil {
 				return err
 			}
-			clear()
-			fmt.Printf("%s: %s", prefix, humanizeBytes(usage))
 			select {
 			case <-quit:
 				return nil
-			case <-time.After(250 * time.Millisecond):
-				break
+			default:
 			}
 		}
 	})
 	return func() error {
 		close(quit)
-		err := gr.Wait()
-		if errp != nil && *errp == nil {
-			*errp = err
+		if err := gr.Wait(); err != nil {
+			if errp != nil && *errp == nil {
+				*errp = err
+			}
+			return err
 		}
 		clear()
-		return err
+		log.Print(render())
+		return nil
 	}
 }
