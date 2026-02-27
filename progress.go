@@ -30,6 +30,18 @@ func humanizeBytes(b int64) string {
 	}
 }
 
+func diskUsage(path string) int64 {
+	var usage int64
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.Mode().IsRegular() {
+			usage += info.Size()
+		}
+		return nil
+	}
+	filepath.Walk(path, walkFn)
+	return usage
+}
+
 func progressSize(prefix, path string, done chan struct{}) {
 	if !isatty.IsTerminal(os.Stdout.Fd()) {
 		return
@@ -38,13 +50,7 @@ func progressSize(prefix, path string, done chan struct{}) {
 	// so that we can clear it in its entirety.
 	var previous int
 	for {
-		var usage int64
-		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-			if err == nil && info.Mode().IsRegular() {
-				usage += info.Size()
-			}
-			return nil
-		})
+		usage := diskUsage(path)
 		fmt.Printf("\r%s", strings.Repeat(" ", previous))
 		previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
 		select {
