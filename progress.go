@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/mattn/go-isatty"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-isatty"
 )
 
 const (
@@ -30,23 +31,22 @@ func humanizeBytes(b int64) string {
 }
 
 func progressSize(prefix, path string, done chan struct{}) {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return
+	}
 	// previous holds how many bytes the previous line contained
 	// so that we can clear it in its entirety.
 	var previous int
-	tty := isatty.IsTerminal(os.Stdout.Fd())
 	for {
-		if tty {
-			var usage int64
-			filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-				if err == nil && info.Mode().IsRegular() {
-					usage += info.Size()
-				}
-				return nil
-			})
-			fmt.Printf("\r%s", strings.Repeat(" ", previous))
-			previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
-		}
-
+		var usage int64
+		filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+			if err == nil && info.Mode().IsRegular() {
+				usage += info.Size()
+			}
+			return nil
+		})
+		fmt.Printf("\r%s", strings.Repeat(" ", previous))
+		previous, _ = fmt.Printf("\r%s: %s", prefix, humanizeBytes(usage))
 		select {
 		case <-done:
 			fmt.Printf("\r")
