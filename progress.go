@@ -56,9 +56,6 @@ func diskUsage(path string) (int64, error) {
 // done callback is called, written to the provided error pointer if the pointer is non-nil and the
 // pointed-to value is nil.
 func monitorDiskUsage(prefix, path string, errp *error) func() error {
-	if !isatty.IsTerminal(os.Stdout.Fd()) {
-		return func() error { return nil }
-	}
 	before, err := diskUsage(path)
 	if err != nil {
 		return func() error {
@@ -80,18 +77,27 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 	}
 	gr := &errgroup.Group{}
 	quit := make(chan struct{})
-	clear := func() {
-		const csi = "\033["   // Control Sequence Introducer
-		const el0 = csi + "K" // Erase in Line 0 (clear from cursor to end of line)
-		fmt.Print("\r" + el0)
+	period := 3 * time.Second
+	output := func() { log.Print(render()) }
+	clear := func() {}
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		period = 250 * time.Millisecond
+		output = func() {
+			clear()
+			fmt.Print(render())
+		}
+		clear = func() {
+			const csi = "\033["   // Control Sequence Introducer
+			const el0 = csi + "K" // Erase in Line 0 (clear from cursor to end of line)
+			fmt.Print("\r" + el0)
+		}
 	}
 	gr.Go(func() error {
 		for {
-			clear()
-			fmt.Print(render())
+			output()
 			select {
 			case <-quit:
-			case <-time.After(250 * time.Millisecond):
+			case <-time.After(period):
 			}
 			var err error
 			if after, err = diskUsage(path); err != nil {
