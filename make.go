@@ -123,14 +123,13 @@ type upstream struct {
 }
 
 func (u *upstream) get(gopath, repo, rev string) error {
-	defer monitorDiskUsage("go get", filepath.Join(gopath, "src"))()
-
 	rr, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
 		return fmt.Errorf("get repo root: %w", err)
 	}
 	u.rr = rr
 	dir := filepath.Join(gopath, "src", rr.Root)
+	defer monitorDiskUsage("go get", dir)()
 	if rev != "" {
 		// Run "git clone {repo} {dir}" and "git checkout {tag}"
 		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
