@@ -42,7 +42,9 @@ func diskUsage(path string) int64 {
 	return usage
 }
 
-func progressSize(prefix, path string, done chan struct{}) {
+// monitorDiskUsage periodically prints the disk usage of the given directory or file until a read
+// from the provided channel completes.
+func monitorDiskUsage(prefix, path string, done chan struct{}) {
 	if !isatty.IsTerminal(os.Stdout.Fd()) {
 		return
 	}
