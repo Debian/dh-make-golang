@@ -81,6 +81,7 @@ func findVendorDirs(dir string) ([]string, error) {
 }
 
 func downloadFile(filename, url string) error {
+	defer monitorDiskUsage("Download", filename)()
 	dst, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("create: %w", err)
@@ -173,7 +174,6 @@ func (u *upstream) tarballFromHoster() error {
 	if err != nil {
 		return err
 	}
-	defer monitorDiskUsage("Download", u.tarPath)()
 	log.Printf("Downloading %s", tarURL)
 	return downloadFile(u.tarPath, tarURL)
 }
