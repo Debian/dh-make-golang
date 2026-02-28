@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mattn/go-isatty"
 	"golang.org/x/tools/go/vcs"
@@ -63,8 +64,36 @@ func getSourcesInNew() (map[string]string, error) {
 	return sourcesInNew, nil
 }
 
-func get(gopath, repodir, repo, rev string) (retErr error) {
-	defer monitorDiskUsage("go get", filepath.Join(gopath, "pkg", "mod", "cache"), &retErr)()
+// goModCache returns the value of the GOMODCACHE variable used by Go.
+var goModCache = sync.OnceValues(func() (string, error) {
+	cmd := exec.Command("go", "env", "-json", "GOMODCACHE")
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+	var env struct {
+		GOMODCACHE string
+	}
+	if err := json.NewDecoder(stdout).Decode(&env); err != nil {
+		return "", err
+	}
+	if err := cmd.Wait(); err != nil {
+		return "", err
+	}
+	return env.GOMODCACHE, nil
+})
+
+func get(repodir, repo, rev string) (retErr error) {
+	gmc, err := goModCache()
+	if err != nil {
+		return err
+	}
+	defer log.Print("run \"go clean -modcache\" to recover disk space")
+	defer monitorDiskUsage("go get", filepath.Join(gmc, "cache"), &retErr)()
 
 	// As per https://groups.google.com/forum/#!topic/golang-nuts/N5apfenE4m4,
 	// the arguments to “go get” are packages, not repositories. Hence, we
@@ -82,25 +111,17 @@ func get(gopath, repodir, repo, rev string) (retErr error) {
 	out := bytes.Buffer{}
 	cmd.Dir = repodir
 	cmd.Stderr = &out
-	cmd.Env = append([]string{
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		fmt.Fprint(os.Stderr, "\n", out.String())
 	}
 	return err
 }
 
-// getModuleDir returns the path of the directory containing a module for the
-// given GOPATH and repository dir values.
-func getModuleDir(gopath, repodir, module string) (string, error) {
+// getModuleDir returns the path of the directory containing a module for the given repository dir.
+func getModuleDir(repodir, module string) (string, error) {
 	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", module)
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
@@ -108,12 +129,11 @@ func getModuleDir(gopath, repodir, module string) (string, error) {
 	return string(bytes.TrimSpace(out)), nil
 }
 
-// getDirectDependencies returns a set of all the direct dependencies of a
-// module for the given GOPATH and repository dir values. It first finds the
-// directory that contains this module, then uses go list in this directory
-// to get its direct dependencies.
-func getDirectDependencies(gopath, repodir, module string) (map[string]bool, error) {
-	dir, err := getModuleDir(gopath, repodir, module)
+// getDirectDependencies returns a set of all the direct dependencies of a module for the given
+// repository dir. It first finds the directory that contains this module, then uses go list in this
+// directory to get its direct dependencies.
+func getDirectDependencies(repodir, module string) (map[string]bool, error) {
+	dir, err := getModuleDir(repodir, module)
 	if err != nil {
 		return nil, fmt.Errorf("get module dir: %w", err)
 	}
@@ -126,9 +146,6 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	cmd := exec.Command("go", "list", "-m", "-f", "{{if not .Indirect}}{{.Path}}{{end}}", "all")
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
@@ -212,13 +229,7 @@ func estimate(importpath, revision string) error {
 		}
 	}
 
-	// construct a separate GOPATH in a temporary directory
-	gopath, err := os.MkdirTemp("", "dh-make-golang")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	defer removeTemp(gopath)
-	// second temporary directosy for the repo sources
+	// temporary directory for the repo sources
 	repodir, err := os.MkdirTemp("", "dh-make-golang")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
@@ -231,7 +242,7 @@ func estimate(importpath, revision string) error {
 		return fmt.Errorf("create dummymod: %w", err)
 	}
 
-	if err := get(gopath, repodir, importpath, revision); err != nil {
+	if err := get(repodir, importpath, revision); err != nil {
 		return fmt.Errorf("go get: %w", err)
 	}
 
@@ -242,7 +253,7 @@ func estimate(importpath, revision string) error {
 
 	if found {
 		// Fetch un-vendored dependencies
-		if err := get(gopath, repodir, importpath, revision); err != nil {
+		if err := get(repodir, importpath, revision); err != nil {
 			return fmt.Errorf("fetch un-vendored: go get: %w", err)
 		}
 	}
@@ -251,16 +262,13 @@ func estimate(importpath, revision string) error {
 	cmd := exec.Command("go", "mod", "graph")
 	cmd.Dir = repodir
 	cmd.Stderr = os.Stderr
-	cmd.Env = append([]string{
-		"GOPATH=" + gopath,
-	}, passthroughEnv()...)
 	out, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("go mod graph: args: %v; error: %w", cmd.Args, err)
 	}
 
 	// Get direct dependencies, to filter out indirect ones from go mod graph output
-	directDeps, err := getDirectDependencies(gopath, repodir, importpath)
+	directDeps, err := getDirectDependencies(repodir, importpath)
 	if err != nil {
 		return fmt.Errorf("get direct dependencies: %w", err)
 	}
