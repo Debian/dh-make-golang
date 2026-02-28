@@ -56,6 +56,7 @@ func diskUsage(path string) (int64, error) {
 // done callback is called, written to the provided error pointer if the pointer is non-nil and the
 // pointed-to value is nil.
 func monitorDiskUsage(prefix, path string, errp *error) func() error {
+	log.Printf("%s: monitoring disk usage in %s", prefix, path)
 	before, err := diskUsage(path)
 	if err != nil {
 		return func() error {
