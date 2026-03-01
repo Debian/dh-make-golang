@@ -7,7 +7,7 @@ go 1.25.0
 
 require (
 	github.com/charmbracelet/glamour v0.10.0 // Forky: golang-github-charmbracelet-glamour 0.10.0-1
-	github.com/google/go-github/v60 v60.0.0 // Forky: golang-github-google-go-github 60.0.0-1
+	github.com/google/go-github/v84 v84.0.0 // Forky: golang-github-google-go-github 60.0.0-1
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // Forky: golang-github-gregjones-httpcache 0.0~git20180305.9cad4c3-1.1
 	github.com/mattn/go-isatty v0.0.20 // Forky: golang-github-mattn-go-isatty 0.0.20-1
 	golang.org/x/mod v0.33.0 // Forky: golang-golang-x-mod 0.30.0-1
