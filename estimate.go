@@ -128,9 +128,8 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 		return nil, fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
 	}
 	out = bytes.TrimRight(out, "\n")
-	lines := strings.Split(string(out), "\n")
-	deps := make(map[string]bool, len(lines))
-	for _, line := range lines {
+	deps := map[string]bool{}
+	for line := range strings.SplitSeq(string(out), "\n") {
 		deps[line] = true
 	}
 	return deps, nil
@@ -278,7 +277,7 @@ func estimate(importpath, revision string) error {
 	root := &Node{name: importpath}
 	nodes := make(map[string]*Node)
 	nodes[importpath] = root
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		// go mod graph outputs one line for each dependency. Each line
 		// consists of the dependency preceded by the module that
 		// imported it, separated by a single space. The module names
