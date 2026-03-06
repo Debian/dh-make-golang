@@ -250,7 +250,7 @@ func (u *upstream) findMains(gopath, repo string) error {
 			log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
 		}
 	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if strings.Contains(line, "/vendor/") ||
 			strings.Contains(line, "/Godeps/") ||
 			strings.Contains(line, "/samples/") ||
@@ -290,7 +290,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	}
 
 	godependencies := make(map[string]bool)
-	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for p := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if p == "" {
 			continue // skip separators between import types
 		}
@@ -319,7 +319,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		return fmt.Errorf("go list std: (args: %v): %w", cmd.Args, err)
 	}
 
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		delete(godependencies, line)
 	}
 

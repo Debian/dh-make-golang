@@ -20,7 +20,7 @@ func reformatForControl(raw string) string {
 	next_prefix := ""
 	re := regexp.MustCompile(`^ \d+\. `)
 
-	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(raw), "\n") {
 		// Remove paddings that Glamour currently add to the end of each line
 		line = strings.TrimRight(line, " ")
 

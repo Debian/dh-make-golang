@@ -43,7 +43,7 @@ func getGolangBinaries() (map[string]debianPackage, error) {
 		if !strings.HasSuffix(pkg.Binary, "-dev") {
 			continue // skip -dbgsym packages etc.
 		}
-		for _, importPath := range strings.Split(pkg.XSGoImportPath, ",") {
+		for importPath := range strings.SplitSeq(pkg.XSGoImportPath, ",") {
 			// XS-Go-Import-Path can be comma-separated and contain spaces.
 			golangBinaries[strings.TrimSpace(importPath)] = debianPackage{
 				binary: pkg.Binary,
