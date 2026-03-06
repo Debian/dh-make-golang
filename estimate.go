@@ -143,26 +143,6 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	return deps, nil
 }
 
-func removeVendor(repodir string) (found bool, _ error) {
-	err := filepath.Walk(repodir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return nil // skip non-directories
-		}
-		if info.Name() != "vendor" {
-			return nil
-		}
-		found = true
-		if err := os.RemoveAll(path); err != nil {
-			return fmt.Errorf("remove all: %w", err)
-		}
-		return filepath.SkipDir
-	})
-	return found, err
-}
-
 // otherVersions guesses the import paths of potential other major version
 // of the given module import path, based on [majorVersionRegex].
 func otherVersions(mod string) (mods []string) {
@@ -235,18 +215,6 @@ func estimate(importpath, revision string) error {
 
 	if err := get(gopath, repodir, importpath, revision); err != nil {
 		return fmt.Errorf("go get: %w", err)
-	}
-
-	found, err := removeVendor(repodir)
-	if err != nil {
-		return fmt.Errorf("remove vendor: %w", err)
-	}
-
-	if found {
-		// Fetch un-vendored dependencies
-		if err := get(gopath, repodir, importpath, revision); err != nil {
-			return fmt.Errorf("fetch un-vendored: go get: %w", err)
-		}
 	}
 
 	// Get dependency graph from go mod graph
