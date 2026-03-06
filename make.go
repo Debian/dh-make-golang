@@ -258,8 +258,8 @@ func (u *upstream) findMains(gopath, repo string) error {
 			strings.Contains(line, "/example/") {
 			continue
 		}
-		if strings.HasSuffix(line, " main") {
-			u.firstMain = strings.TrimSuffix(line, " main")
+		if before, ok := strings.CutSuffix(line, " main"); ok {
+			u.firstMain = before
 			break
 		}
 	}
@@ -580,8 +580,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"software.sslmate.com": "sslmate",
 		"zgo.at":               "zgoat",
 	}
-	parts := strings.Split(gopkg, "/")
-	fqdn := parts[0]
+	fqdn, _, _ := strings.Cut(gopkg, "/")
 	if host, ok := knownHosts[fqdn]; ok {
 		return host, nil
 	}
