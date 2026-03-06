@@ -76,8 +76,8 @@ Comment:
 var githubRegexp = regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
 
 func findGitHubOwnerRepo(gopkg string) (string, error) {
-	if strings.HasPrefix(gopkg, "github.com/") {
-		return strings.TrimPrefix(gopkg, "github.com/"), nil
+	if after, ok := strings.CutPrefix(gopkg, "github.com/"); ok {
+		return after, nil
 	}
 	resp, err := http.Get("https://" + gopkg + "?go-get=1")
 	if err != nil {
