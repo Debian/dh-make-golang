@@ -66,26 +66,39 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 			return err
 		}
 	}
-	after := before
-	render := func() string {
+	firstRun := true
+	render := func() (string, error) {
+		after := before
+		if firstRun {
+			firstRun = false
+		} else {
+			var err error
+			if after, err = diskUsage(path); err != nil {
+				return "", err
+			}
+		}
 		hDiff := humanizeBytes(after)
 		total := ""
 		if before != 0 {
 			total = fmt.Sprintf(" (%s total)", hDiff)
 			hDiff = humanizeBytes(after - before)
 		}
-		return fmt.Sprintf("%s: %s added%s", prefix, hDiff, total)
+		return fmt.Sprintf("%s: %s added%s", prefix, hDiff, total), nil
 	}
+	return monitorProgress(render, errp)
+}
+
+func monitorProgress(render func() (string, error), errp *error) func() error {
 	gr := &errgroup.Group{}
 	quit := make(chan struct{})
 	period := 3 * time.Second
-	output := func() { log.Print(render()) }
+	output := func(out string) { log.Print(out) }
 	clear := func() {}
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		period = 250 * time.Millisecond
-		output = func() {
+		output = func(out string) {
 			clear()
-			fmt.Print(render())
+			fmt.Print(out)
 		}
 		clear = func() {
 			const csi = "\033["   // Control Sequence Introducer
@@ -93,15 +106,25 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 			fmt.Print("\r" + el0)
 		}
 	}
+	out, err := render()
+	if err != nil {
+		return func() error {
+			if errp != nil && *errp == nil {
+				*errp = err
+			}
+			return err
+		}
+	}
 	gr.Go(func() error {
+		tickCh := time.Tick(period)
 		for {
-			output()
+			output(out)
 			select {
 			case <-quit:
-			case <-time.After(period):
+			case <-tickCh:
 			}
-			var err error
-			if after, err = diskUsage(path); err != nil {
+			out, err = render()
+			if err != nil {
 				return err
 			}
 			select {
@@ -120,7 +143,7 @@ func monitorDiskUsage(prefix, path string, errp *error) func() error {
 			return err
 		}
 		clear()
-		log.Print(render())
+		log.Print(out)
 		return nil
 	}
 }
