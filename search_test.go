@@ -95,7 +95,7 @@ func TestGetGolangBinaries(t *testing.T) {
 				}
 			}))
 			defer ts.Close()
-			got, err := getGolangBinaries(getGolangBinariesUrl(ts.URL))
+			got, err := getGolangBinaries(withGolangBinariesUrl(ts.URL))
 			if err != nil {
 				t.Fatal(err)
 			}
