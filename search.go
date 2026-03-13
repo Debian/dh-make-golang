@@ -32,7 +32,7 @@ type getGolangBinariesConfig struct {
 
 type getGolangBinariesOption func(cfg *getGolangBinariesConfig)
 
-func getGolangBinariesUrl(url string) getGolangBinariesOption {
+func withGolangBinariesUrl(url string) getGolangBinariesOption {
 	return func(cfg *getGolangBinariesConfig) {
 		cfg.url = url
 	}
