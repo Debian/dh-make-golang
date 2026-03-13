@@ -80,7 +80,8 @@ func findVendorDirs(dir string) ([]string, error) {
 	return vendorDirs, err
 }
 
-func downloadFile(filename, url string) error {
+func downloadFile(filename, url string) (retErr error) {
+	defer monitorDiskUsage("Download", filename, &retErr)()
 	dst, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("create: %w", err)
@@ -121,17 +122,14 @@ type upstream struct {
 	isRelease   bool     // whether what we end up packaging is a tagged release
 }
 
-func (u *upstream) get(gopath, repo, rev string) error {
-	done := make(chan struct{})
-	defer close(done)
-	go progressSize("go get", filepath.Join(gopath, "src"), done)
-
+func (u *upstream) get(gopath, repo, rev string) (retErr error) {
 	rr, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
 		return fmt.Errorf("get repo root: %w", err)
 	}
 	u.rr = rr
 	dir := filepath.Join(gopath, "src", rr.Root)
+	defer monitorDiskUsage("go get", dir, &retErr)()
 	if rev != "" {
 		// Run "git clone {repo} {dir}" and "git checkout {tag}"
 		return rr.VCS.CreateAtRev(dir, rr.Repo, rev)
@@ -175,16 +173,8 @@ func (u *upstream) tarballFromHoster() error {
 	if err != nil {
 		return err
 	}
-
-	done := make(chan struct{})
-	go progressSize("Download", u.tarPath, done)
-
 	log.Printf("Downloading %s", tarURL)
-	err = downloadFile(u.tarPath, tarURL)
-
-	close(done)
-
-	return err
+	return downloadFile(u.tarPath, tarURL)
 }
 
 func (u *upstream) tar(gopath, repo string) error {
