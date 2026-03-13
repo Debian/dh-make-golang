@@ -12,19 +12,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/mattn/go-isatty"
-	"golang.org/x/tools/go/vcs"
 )
 
 const (
 	sourcesInNewURL = "https://api.ftp-master.debian.org/sources_in_suite/new"
 )
-
-// majorVersionRegexp checks if an import path contains a major version suffix.
-var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
 // moduleBlocklist is a map of modules that we want to exclude from the estimate
 // output, associated with the reason why.
@@ -143,57 +138,6 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	return deps, nil
 }
 
-func removeVendor(repodir string) (found bool, _ error) {
-	err := filepath.Walk(repodir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return nil // skip non-directories
-		}
-		if info.Name() != "vendor" {
-			return nil
-		}
-		found = true
-		if err := os.RemoveAll(path); err != nil {
-			return fmt.Errorf("remove all: %w", err)
-		}
-		return filepath.SkipDir
-	})
-	return found, err
-}
-
-// otherVersions guesses the import paths of potential other major version
-// of the given module import path, based on [majorVersionRegex].
-func otherVersions(mod string) (mods []string) {
-	matches := majorVersionRegexp.FindStringSubmatch(mod)
-	if matches == nil {
-		return
-	}
-	matchFull, matchSep, matchVer := matches[0], matches[1], matches[2]
-	matchIndex := len(mod) - len(matchFull)
-	prefix := mod[:matchIndex]
-	version, _ := strconv.Atoi(matchVer)
-	for v := version - 1; v > 1; v-- {
-		mods = append(mods, prefix+matchSep+"v"+strconv.Itoa(v))
-	}
-	mods = append(mods, prefix)
-	return
-}
-
-// findOtherVersion search in m for potential other versions of the given
-// module and returns the number of the major version found, 0 if not,
-// along with the corresponding package name.
-func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackage) {
-	versions := otherVersions(mod)
-	for i, version := range versions {
-		if pkg, ok := m[version]; ok {
-			return len(versions) - i, pkg
-		}
-	}
-	return 0, debianPackage{}
-}
-
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
 // package name.
 func trackerLink(pkg string) string {
@@ -235,18 +179,6 @@ func estimate(importpath, revision string) error {
 
 	if err := get(gopath, repodir, importpath, revision); err != nil {
 		return fmt.Errorf("go get: %w", err)
-	}
-
-	found, err := removeVendor(repodir)
-	if err != nil {
-		return fmt.Errorf("remove vendor: %w", err)
-	}
-
-	if found {
-		// Fetch un-vendored dependencies
-		if err := get(gopath, repodir, importpath, revision); err != nil {
-			return fmt.Errorf("fetch un-vendored: go get: %w", err)
-		}
 	}
 
 	// Get dependency graph from go mod graph
@@ -328,7 +260,6 @@ func estimate(importpath, revision string) error {
 	// Analyse the dependency graph
 	var lines []string
 	seen := make(map[string]bool)
-	rrseen := make(map[string]bool)
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
@@ -357,56 +288,13 @@ func estimate(importpath, revision string) error {
 				}
 				return // already packaged in Debian
 			}
-			var repoRoot string
-			rr, err := vcs.RepoRootForImportPath(mod, false)
-			if err != nil {
-				log.Printf("Could not determine repo path for import path %q: %v\n", mod, err)
-				repoRoot = mod
-			} else {
-				repoRoot = rr.Root
-			}
-			// Check for potential other major versions already in Debian.
-			v, pkg := findOtherVersion(golangBinaries, mod)
-			if v != 0 {
-				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
-				if v == 1 {
-					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg.source))
-				} else {
-					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
-				}
-				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
-				}
-				return
-			}
-			// When multiple modules are developped in the same repo,
-			// the repo root is often used as the import path metadata
-			// in Debian, so we do a last try with that.
-			if pkg, ok := golangBinaries[repoRoot]; ok {
-				// Log info to indicate that it is an approximate match
-				// but consider that it is packaged and skip the children.
-				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
-				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
-				}
-				return
-			}
 			// Ignore modules from the blocklist.
 			if reason, found := moduleBlocklist[mod]; found {
 				log.Printf("Ignoring module %s: %s", mod, reason)
 				return
 			}
-			if rrseen[repoRoot] {
-				output(hiblackf("%v", mod))
-			} else if strings.HasPrefix(mod, repoRoot) && len(mod) > len(repoRoot) {
-				suffix := mod[len(repoRoot):]
-				output(repoRoot + hiblackf("%v", suffix))
-			} else {
-				output(mod)
-			}
-			rrseen[repoRoot] = true
 			needed[mod] = 1
+			lines = append(lines, strings.Repeat("  ", indent)+mod)
 		}
 		for _, n := range n.children {
 			visit(n, indent+1)
