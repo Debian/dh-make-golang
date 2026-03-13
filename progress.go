@@ -96,6 +96,24 @@ func monitorProgress(render func() (string, error), errp *error) func() error {
 	clear := func() {}
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		period = 250 * time.Millisecond
+		// TODO: This approach doesn't work well in two cases:
+		//
+		//   * out is longer than a line.  The clear function only clears the current line, which will
+		//     be the last line of the wrapped message.  Example:
+		//
+		//         foo 123 of 456 in /really/long/path/name/that/wra
+		//         foo 124 of 456 in /really/long/path/name/that/wra
+		//         foo 125 of 456 in /really/long/path/name/that/wra
+		//         ps/to/the/next/line
+		//
+		//   * A message is logged.  The log message will print immediately after out on the same line,
+		//     and the next refresh of the displayed progress will be on a different line.  Example:
+		//
+		//         foo 123 of 4562026/03/09 15:03:53 log message here
+		//         foo 124 of 456
+		//
+		// Perhaps a TUI library (or ncurses directly) can be used to create two areas: a region at the
+		// bottom of the screen for progress and the rest of the screen for displaying log messages.
 		output = func(out string) {
 			clear()
 			fmt.Print(out)
