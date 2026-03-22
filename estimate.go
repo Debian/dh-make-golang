@@ -16,14 +16,12 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
+	"golang.org/x/mod/module"
 )
 
 const (
 	sourcesInNewURL = "https://api.ftp-master.debian.org/sources_in_suite/new"
 )
-
-// majorVersionRegexp checks if an import path contains a major version suffix.
-var majorVersionRegexp = regexp.MustCompile(`([/.])v([0-9]+)$`)
 
 // moduleBlocklist is a map of modules that we want to exclude from the estimate
 // output, associated with the reason why.
@@ -142,35 +140,61 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	return deps, nil
 }
 
-// otherVersions guesses the import paths of potential other major version
-// of the given module import path, based on [majorVersionRegex].
-func otherVersions(mod string) (mods []string) {
-	matches := majorVersionRegexp.FindStringSubmatch(mod)
-	if matches == nil {
-		return
+// splitMajorVersion is like [module.SplitPathVersion] except it returns the major version suffix as
+// an integer instead of a string.  1 is returned for all suffix-less module paths.
+func splitMajorVersion(modPath string) (string, int, error) {
+	if err := module.CheckPath(modPath); err != nil {
+		return "", 0, err
 	}
-	matchFull, matchSep, matchVer := matches[0], matches[1], matches[2]
-	matchIndex := len(mod) - len(matchFull)
-	prefix := mod[:matchIndex]
-	version, _ := strconv.Atoi(matchVer)
-	for v := version - 1; v > 1; v-- {
-		mods = append(mods, prefix+matchSep+"v"+strconv.Itoa(v))
+	pfx, majSfx, _ := module.SplitPathVersion(modPath)
+	if majSfx == "" {
+		return modPath, 1, nil
 	}
-	mods = append(mods, prefix)
-	return
-}
-
-// findOtherVersion search in m for potential other versions of the given
-// module and returns the number of the major version found, 0 if not,
-// along with the corresponding package name.
-func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackage) {
-	versions := otherVersions(mod)
-	for i, version := range versions {
-		if pkg, ok := m[version]; ok {
-			return len(versions) - i, pkg
+	majStr, ok := strings.CutPrefix(majSfx, "/v")
+	if !ok {
+		majStr, ok = strings.CutPrefix(majSfx, ".v")
+		if !ok {
+			panic("major version suffix does not match \"/v*\" or \".v*\"")
 		}
 	}
-	return 0, debianPackage{}
+	maj, err := strconv.Atoi(majStr)
+	if err != nil {
+		return "", 0, err
+	}
+	return pfx, maj, nil
+}
+
+// bestOtherMaj searches for a Debian package that provides mod except at a different major version.
+// If one is found, the other major version and Debian package are returned.  If no match is found,
+// zero values are returned.  1 is returned for module paths without a major version suffix even if
+// the major version is v0.
+func bestOtherMaj(m map[string]map[string]debianPackage, mod string) (int, debianPackage) {
+	pfx, maj, err := splitMajorVersion(mod)
+	if err != nil {
+		log.Printf("WARNING: failed to extract major version from module path %v: %v", mod, err)
+		return 0, debianPackage{}
+	}
+	best := 0
+	bestPkg := debianPackage{}
+	bestDist := 0
+	for other, otherPkg := range m[pfx] {
+		if other == mod {
+			continue
+		}
+		_, otherMaj, err := splitMajorVersion(other)
+		if err != nil {
+			log.Printf("WARNING: failed to extract major version from module path %v: %v", other, err)
+			continue
+		}
+		diff := otherMaj - maj
+		otherDist := max(diff, -diff)
+		if best == 0 || otherDist < bestDist || (otherDist == bestDist && otherMaj < maj) {
+			best = otherMaj
+			bestPkg = otherPkg
+			bestDist = otherDist
+		}
+	}
+	return best, bestPkg
 }
 
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
@@ -238,6 +262,19 @@ func estimate(importpath, revision string) error {
 	golangBinaries, err := getGolangBinaries()
 	if err != nil {
 		return fmt.Errorf("get golang debian packages: %w", err)
+	}
+	packagedByModPathPrefix := map[string]map[string]debianPackage{}
+	for modPath, pkg := range golangBinaries {
+		pfx, _, ok := module.SplitPathVersion(modPath)
+		if !ok {
+			log.Printf("WARNING: ignoring invalid module path %v for Debian package %v",
+				modPath, pkg.binary)
+			continue
+		}
+		if packagedByModPathPrefix[pfx] == nil {
+			packagedByModPathPrefix[pfx] = map[string]debianPackage{}
+		}
+		packagedByModPathPrefix[pfx][modPath] = pkg
 	}
 	sourcesInNew, err := getSourcesInNew()
 	if err != nil {
@@ -324,7 +361,7 @@ func estimate(importpath, revision string) error {
 				return // already packaged in Debian
 			}
 			// Check for potential other major versions already in Debian.
-			v, pkg := findOtherVersion(golangBinaries, mod)
+			v, pkg := bestOtherMaj(packagedByModPathPrefix, mod)
 			if v != 0 {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
