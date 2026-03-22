@@ -165,16 +165,15 @@ func splitMajorVersion(modPath string) (string, int, error) {
 }
 
 // bestOtherMaj searches for a Debian package that provides mod except at a different major version.
-// If one is found, the other major version and Debian package are returned.  If no match is found,
-// zero values are returned.  1 is returned for module paths without a major version suffix even if
-// the major version is v0.
-func bestOtherMaj(m map[string]map[string]debianPackage, mod string) (int, debianPackage) {
+// If one is found, the Debian package and the Go module path it provides are returned.  If no match
+// is found, zero values are returned.
+func bestOtherMaj(m map[string]map[string]debianPackage, mod string) (string, debianPackage) {
 	pfx, maj, err := splitMajorVersion(mod)
 	if err != nil {
 		log.Printf("WARNING: failed to extract major version from module path %v: %v", mod, err)
-		return 0, debianPackage{}
+		return "", debianPackage{}
 	}
-	best := 0
+	best := ""
 	bestPkg := debianPackage{}
 	bestDist := 0
 	for other, otherPkg := range m[pfx] {
@@ -188,8 +187,8 @@ func bestOtherMaj(m map[string]map[string]debianPackage, mod string) (int, debia
 		}
 		diff := otherMaj - maj
 		otherDist := max(diff, -diff)
-		if best == 0 || otherDist < bestDist || (otherDist == bestDist && otherMaj < maj) {
-			best = otherMaj
+		if best == "" || otherDist < bestDist || (otherDist == bestDist && otherMaj < maj) {
+			best = other
 			bestPkg = otherPkg
 			bestDist = otherDist
 		}
@@ -361,15 +360,11 @@ func estimate(importpath, revision string) error {
 				return // already packaged in Debian
 			}
 			// Check for potential other major versions already in Debian.
-			v, pkg := bestOtherMaj(packagedByModPathPrefix, mod)
-			if v != 0 {
+			if p, pkg := bestOtherMaj(packagedByModPathPrefix, mod); p != "" {
 				// Log info to indicate that it is an approximate match
 				// but consider that it is packaged and skip the children.
-				if v == 1 {
-					log.Printf("%s has no version string in Debian (%s)", mod, trackerLink(pkg.source))
-				} else {
-					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
-				}
+				log.Printf("See %v for inspiration (it packages module %v) when packaging %v",
+					trackerLink(pkg.source), p, mod)
 				if version, ok := sourcesInNew[pkg.source]; ok {
 					output(newPackageLine(mod, pkg.source, version))
 				}
