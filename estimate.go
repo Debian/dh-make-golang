@@ -34,6 +34,7 @@ var (
 	cyanf     = fmt.Sprintf
 	hiblackf  = fmt.Sprintf
 	hyperlink = func(url, txt string) string { return txt }
+	yellowf   = fmt.Sprintf
 )
 
 func getSourcesInNew() (map[string]string, error) {
@@ -353,6 +354,7 @@ func estimate(importpath, revision string) error {
 			if mod == "go" || mod == "toolchain" {
 				return
 			}
+			hint := ""
 			if pkg, ok := golangBinaries[mod]; ok {
 				if version, ok := sourcesInNew[pkg.source]; ok {
 					output(newPackageLine(mod, pkg.source, version))
@@ -361,9 +363,7 @@ func estimate(importpath, revision string) error {
 			}
 			// Check for potential other major versions already in Debian.
 			if p, pkg := bestOtherMaj(packagedByModPathPrefix, mod); p != "" {
-				// Log info to indicate that it is an approximate match
-				log.Printf("See %v for inspiration (it packages module %v) when packaging %v",
-					trackerLink(pkg.source), p, mod)
+				hint += " " + yellowf("(see %v for inspiration)", trackerLink(pkg.source))
 			}
 			// Ignore modules from the blocklist.
 			if reason, found := moduleBlocklist[mod]; found {
@@ -371,7 +371,7 @@ func estimate(importpath, revision string) error {
 				return
 			}
 			needed[mod] = 1
-			output(mod)
+			output(mod + hint)
 		}
 		for _, n := range n.children {
 			visit(n, indent+1)
@@ -447,6 +447,9 @@ func execEstimate(args []string) {
 		}
 		hyperlink = func(url, txt string) string {
 			return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, txt)
+		}
+		yellowf = func(format string, args ...any) string {
+			return "\033[33m" + fmt.Sprintf(format, args...) + "\033[0m"
 		}
 	}
 
