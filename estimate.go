@@ -203,13 +203,6 @@ func trackerLink(pkg string) string {
 	return hyperlink("https://tracker.debian.org/pkg/"+pkg, pkg)
 }
 
-// newPackageLine generates a line for packages in NEW, including an OSC 8
-// hyperlink to the FTP masters website for the given Debian package.
-func newPackageLine(mod, debpkg, version string) string {
-	url := "https://dfsg-new-queue.debian.org/reviews/" + debpkg
-	return cyanf("%v (%v)", mod, hyperlink(url, fmt.Sprintf("in NEW as %v %v", debpkg, version)))
-}
-
 func estimate(importpath, revision string) error {
 	removeTemp := func(path string) {
 		if err := forceRemoveAll(path); err != nil {
@@ -357,7 +350,9 @@ func estimate(importpath, revision string) error {
 			hint := ""
 			if pkg, ok := golangBinaries[mod]; ok {
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					output(newPackageLine(mod, pkg.source, version))
+					url := "https://dfsg-new-queue.debian.org/reviews/" + pkg.source
+					msg := fmt.Sprintf("in NEW as %v %v", pkg.source, version)
+					output(cyanf("%v (%v)", mod, hyperlink(url, msg)))
 				}
 				return // already packaged in Debian
 			}
