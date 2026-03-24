@@ -352,7 +352,8 @@ func estimate(importpath, revision string) error {
 				if version, ok := sourcesInNew[pkg.source]; ok {
 					url := "https://dfsg-new-queue.debian.org/reviews/" + pkg.source
 					msg := fmt.Sprintf("in NEW as %v %v", pkg.source, version)
-					output(cyanf("%v (%v)", mod, hyperlink(url, msg)))
+					hint += " " + cyanf("(%v)", hyperlink(url, msg))
+					output(mod + hint)
 				}
 				return // already packaged in Debian
 			}
