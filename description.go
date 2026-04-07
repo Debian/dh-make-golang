@@ -16,11 +16,11 @@ var descriptionJSONBytes []byte
 // reformatForControl reformats the wrapped description
 // to conform to Debian’s control format.
 func reformatForControl(raw string) string {
-	output := ""
+	var output strings.Builder
 	next_prefix := ""
 	re := regexp.MustCompile(`^ \d+\. `)
 
-	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(raw), "\n") {
 		// Remove paddings that Glamour currently add to the end of each line
 		line = strings.TrimRight(line, " ")
 
@@ -42,9 +42,9 @@ func reformatForControl(raw string) string {
 			prefix = ""
 			next_prefix = ""
 		}
-		output += " " + prefix + line + "\n"
+		output.WriteString(" " + prefix + line + "\n")
 	}
-	return output
+	return output.String()
 }
 
 // markdownToLongDescription converts Markdown to plain text

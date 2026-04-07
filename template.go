@@ -356,8 +356,42 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 		fmt.Fprintf(f, "dist = DEP14\n")
 	}
 	if pristineTar {
-		fmt.Fprintf(f, "pristine-tar = True\n")
+		fmt.Fprintf(f, `
+
+# Enable pristine-tar for git-buildpackage to exactly reproduce orig tarballs
+pristine-tar = True
+`)
 	}
+
+	// Additional text to the template which is useful for most Go packages
+	fmt.Fprint(f, `
+
+# Enable git-buildpackage to build using the currently checked out branch as if
+# it was the Debian branch. This makes it easier for contributors to develop and
+# test using feature/bugfix branches.
+ignore-branch = True
+
+# The Debian packaging git repository may also host actual upstream tags and
+# branches, typically named 'main' or 'master'. Configure the upstream tag
+# format below, so that 'gbp import-orig --uscan' will run correctly, and link
+# the tarball import branch ('upstream/latest') with the equivalent upstream
+# release tag, showing a complete audit trail of what upstream released and what
+# was imported into Debian.
+#
+# TODO: Most Go packages have tags of form 'v1.0.0', but must be double-checked.
+#upstream-vcs-tag = v%(version%~%-)s
+
+# If upstream publishes tarball signatures, git-buildpackage will by default
+# import and use the them. Change this to 'on' to make 'gbp import-orig' abort
+# if the signature is not found or is not valid.
+#
+# Most Go packages don't publish signatures for the tarball releases, so this is
+# not enabled by default.
+#upstream-signatures = on
+
+# Ensure the Debian maintainer signs git tags automatically.
+#sign-tags = True
+`)
 	return nil
 }
 
@@ -475,62 +509,42 @@ func writeDebianUpstreamMetadata(dir, gopkg string) error {
 }
 
 func writeDebianGitLabCI(dir string) error {
-	const gitlabciymlTmpl = `# DO NOT MODIFY
-# This file was automatically generated from the authoritative copy at:
-# https://salsa.debian.org/go-team/infra/pkg-go-tools/blob/master/config/gitlabciyml.go
----
-stages:
-  - test
-  - package
-
-include:
-  - project: go-team/infra/pkg-go-tools
-    ref: master
-    file: pipeline/test-archive.yml
-    # Run the Go team CI only in the go-team project that has access to GitLab
-    # CI runners tagged 'go-ci'
-    rules:
-      - if: $CI_PROJECT_ROOT_NAMESPACE  == "go-team"
-
-Salsa CI:
-  stage: package
-  trigger:
-    include:
-      - project: salsa-ci-team/pipeline
-        ref: master
-        file: recipes/debian.yml
-    strategy: depend
-  rules:
-    # Do not create a pipeline for tags unless SALSA_CI_ENABLE_PIPELINE_ON_TAGS is set
-    - if: $CI_COMMIT_TAG != null && $SALSA_CI_ENABLE_PIPELINE_ON_TAGS !~ /^(1|yes|true)$/
-      when: never
-    # Avoid duplicated pipelines, do not run detached pipelines
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: never
-    # Run Salsa CI only if the Play button is pressed on the pipeline
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
-  variables:
-    SALSA_CI_DISABLE_REPROTEST: 1 # Disable to save CI runner resources
-
-# If Salsa CI is not running at
-# https://salsa.debian.org/%{project_path}/-/pipelines, ensure that
-# https://salsa.debian.org/%{project_path}/-/settings/ci_cd has in field "CI/CD
-# configuration file" the same filename as this file.
+	const gitlabciymlTmpl = `# This is a template from
+# https://salsa.debian.org/salsa-ci-team/pipeline/-/raw/master/recipes/salsa-ci.yml
 #
-# If Salsa CI is running, but first job is stuck because the project doesn't
-# have any runners online assigned to it, ensure that
-# https://salsa.debian.org/%{project_path}/-/settings/ci_cd has under "Runners"
-# the setting for "Enable instance runners for this project" enabled.
+# For documentation please read https://salsa.debian.org/salsa-ci-team/pipeline
+#
+# TODO: For a new package, please ensure that the CI is fully passing and green.
+# Disable tests if they can't be easily fixed. The purpose of a CI is to catch
+# regressions, and having a CI file in a new package is moot if it isn't working
+# to begin with.
+---
+include:
+  - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/recipes/debian.yml
 `
 
-	f, err := os.Create(filepath.Join(dir, "debian", "gitlab-ci.yml"))
+	// Write the main Salsa CI configuration file
+	f, err := os.Create(filepath.Join(dir, "debian", "salsa-ci.yml"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
 	fmt.Fprint(f, gitlabciymlTmpl)
+
+	// Write a compatibility shim for older tooling expecting gitlab-ci.yml
+	compatPath := filepath.Join(dir, "debian", "gitlab-ci.yml")
+	fCompat, err := os.Create(compatPath)
+	if err != nil {
+		return err
+	}
+	defer fCompat.Close()
+
+	const compatContent = `# This file exists only for backwards compatibility and can be removed once all
+# documentation and tools have migrated to use the new file name 'salsa-ci.yml'
+include:
+	- local: '/debian/salsa-ci.yml'
+`
+	fmt.Fprint(fCompat, compatContent)
 
 	return nil
 }

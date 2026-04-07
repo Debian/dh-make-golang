@@ -250,7 +250,7 @@ func (u *upstream) findMains(gopath, repo string) error {
 			log.Println("WARNING: In findMains:", fmt.Errorf("%q: %w", cmd.Args, err))
 		}
 	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if strings.Contains(line, "/vendor/") ||
 			strings.Contains(line, "/Godeps/") ||
 			strings.Contains(line, "/samples/") ||
@@ -258,8 +258,8 @@ func (u *upstream) findMains(gopath, repo string) error {
 			strings.Contains(line, "/example/") {
 			continue
 		}
-		if strings.HasSuffix(line, " main") {
-			u.firstMain = strings.TrimSuffix(line, " main")
+		if before, ok := strings.CutSuffix(line, " main"); ok {
+			u.firstMain = before
 			break
 		}
 	}
@@ -290,7 +290,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	}
 
 	godependencies := make(map[string]bool)
-	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for p := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if p == "" {
 			continue // skip separators between import types
 		}
@@ -319,7 +319,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 		return fmt.Errorf("go list std: (args: %v): %w", cmd.Args, err)
 	}
 
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		delete(godependencies, line)
 	}
 
@@ -580,8 +580,7 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 		"software.sslmate.com": "sslmate",
 		"zgo.at":               "zgoat",
 	}
-	parts := strings.Split(gopkg, "/")
-	fqdn := parts[0]
+	fqdn, _, _ := strings.Cut(gopkg, "/")
 	if host, ok := knownHosts[fqdn]; ok {
 		return host, nil
 	}

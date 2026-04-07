@@ -11,9 +11,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -31,13 +33,20 @@ var moduleBlocklist = map[string]string{
 	"github.com/Microsoft/go-winio":     "Windows only",
 }
 
+var (
+	cyanf     = fmt.Sprintf
+	hiblackf  = fmt.Sprintf
+	hyperlink = func(url, txt string) string { return txt }
+)
+
 func getSourcesInNew() (map[string]string, error) {
 	sourcesInNew := make(map[string]string)
 
 	resp, err := http.Get(sourcesInNewURL)
 	if err != nil {
-		return nil, fmt.Errorf("getting %q: %w", golangBinariesURL, err)
+		return nil, fmt.Errorf("getting %q: %w", sourcesInNewURL, err)
 	}
+	defer resp.Body.Close()
 	if got, want := resp.StatusCode, http.StatusOK; got != want {
 		return nil, fmt.Errorf("unexpected HTTP status code: got %d, want %d", got, want)
 	}
@@ -127,16 +136,15 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 		return nil, fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
 	}
 	out = bytes.TrimRight(out, "\n")
-	lines := strings.Split(string(out), "\n")
-	deps := make(map[string]bool, len(lines))
-	for _, line := range lines {
+	deps := map[string]bool{}
+	for line := range strings.SplitSeq(string(out), "\n") {
 		deps[line] = true
 	}
 	return deps, nil
 }
 
-func removeVendor(gopath string) (found bool, _ error) {
-	err := filepath.Walk(gopath, func(path string, info os.FileInfo, err error) error {
+func removeVendor(repodir string) (found bool, _ error) {
+	err := filepath.Walk(repodir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -189,14 +197,14 @@ func findOtherVersion(m map[string]debianPackage, mod string) (int, debianPackag
 // trackerLink generates an OSC 8 hyperlink to the tracker for the given Debian
 // package name.
 func trackerLink(pkg string) string {
-	return fmt.Sprintf("\033]8;;https://tracker.debian.org/pkg/%[1]s\033\\%[1]s\033]8;;\033\\", pkg)
+	return hyperlink("https://tracker.debian.org/pkg/"+pkg, pkg)
 }
 
 // newPackageLine generates a line for packages in NEW, including an OSC 8
 // hyperlink to the FTP masters website for the given Debian package.
-func newPackageLine(indent int, mod, debpkg, version string) string {
-	const format = "%s\033[36m%s (\033]8;;https://ftp-master.debian.org/new/%s_%s.html\033\\in NEW\033]8;;\033\\)\033[0m"
-	return fmt.Sprintf(format, strings.Repeat("  ", indent), mod, debpkg, version)
+func newPackageLine(mod, debpkg, version string) string {
+	url := "https://dfsg-new-queue.debian.org/reviews/" + debpkg
+	return cyanf("%v (%v)", mod, hyperlink(url, fmt.Sprintf("in NEW as %v %v", debpkg, version)))
 }
 
 func estimate(importpath, revision string) error {
@@ -277,7 +285,7 @@ func estimate(importpath, revision string) error {
 	root := &Node{name: importpath}
 	nodes := make(map[string]*Node)
 	nodes[importpath] = root
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		// go mod graph outputs one line for each dependency. Each line
 		// consists of the dependency preceded by the module that
 		// imported it, separated by a single space. The module names
@@ -324,15 +332,16 @@ func estimate(importpath, revision string) error {
 	needed := make(map[string]int)
 	var visit func(n *Node, indent int)
 	visit = func(n *Node, indent int) {
+		output := func(line string) {
+			lines = append(lines, strings.Repeat("  ", indent)+line)
+		}
 		// Get the module name without its version, as go mod graph
 		// can return multiple times the same module with different
 		// versions.
 		mod, _, _ := strings.Cut(n.name, "@")
-		count, isNeeded := needed[mod]
-		if isNeeded {
-			count++
-			needed[mod] = count
-			lines = append(lines, fmt.Sprintf("%s\033[90m%s (%d)\033[0m", strings.Repeat("  ", indent), mod, count))
+		if needed[mod] > 0 {
+			needed[mod]++
+			output(hiblackf("%v (%d)", mod, needed[mod]))
 		} else if seen[mod] {
 			return
 		} else {
@@ -344,8 +353,7 @@ func estimate(importpath, revision string) error {
 			}
 			if pkg, ok := golangBinaries[mod]; ok {
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return // already packaged in Debian
 			}
@@ -368,8 +376,7 @@ func estimate(importpath, revision string) error {
 					log.Printf("%s is v%d in Debian (%s)", mod, v, trackerLink(pkg.source))
 				}
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return
 			}
@@ -381,8 +388,7 @@ func estimate(importpath, revision string) error {
 				// but consider that it is packaged and skip the children.
 				log.Printf("%s is packaged as %s in Debian (%s)", mod, repoRoot, trackerLink(pkg.source))
 				if version, ok := sourcesInNew[pkg.source]; ok {
-					line := newPackageLine(indent, mod, pkg.source, version)
-					lines = append(lines, line)
+					output(newPackageLine(mod, pkg.source, version))
 				}
 				return
 			}
@@ -391,16 +397,14 @@ func estimate(importpath, revision string) error {
 				log.Printf("Ignoring module %s: %s", mod, reason)
 				return
 			}
-			line := strings.Repeat("  ", indent)
 			if rrseen[repoRoot] {
-				line += fmt.Sprintf("\033[90m%s\033[0m", mod)
+				output(hiblackf("%v", mod))
 			} else if strings.HasPrefix(mod, repoRoot) && len(mod) > len(repoRoot) {
 				suffix := mod[len(repoRoot):]
-				line += fmt.Sprintf("%s\033[90m%s\033[0m", repoRoot, suffix)
+				output(repoRoot + hiblackf("%v", suffix))
 			} else {
-				line += mod
+				output(mod)
 			}
-			lines = append(lines, line)
 			rrseen[repoRoot] = true
 			needed[mod] = 1
 		}
@@ -444,9 +448,41 @@ func execEstimate(args []string) {
 			"to estimate, defaulting to the default behavior of go get.\n"+
 			"Useful in case you do not want to estimate the latest version.")
 
+	validColorModes := []string{"auto", "never", "always"}
+	autoColor := os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb" &&
+		isatty.IsTerminal(os.Stdout.Fd())
+	color := autoColor
+	colorModeUsage := fmt.Sprintf("output colors according to `mode` (one of %v; default: auto)",
+		strings.Join(validColorModes, ", "))
+	fs.Func("color", colorModeUsage, func(arg string) error {
+		if !slices.Contains(validColorModes, arg) {
+			return fmt.Errorf("expected one of: %v", strings.Join(validColorModes, ", "))
+		}
+		switch arg {
+		case "auto":
+			color = autoColor
+		case "never":
+			color = false
+		case "always":
+			color = true
+		}
+		return nil
+	})
+
 	err := fs.Parse(args)
 	if err != nil {
 		log.Fatalf("parse args: %s", err)
+	}
+	if color {
+		cyanf = func(format string, args ...any) string {
+			return "\033[36m" + fmt.Sprintf(format, args...) + "\033[0m"
+		}
+		hiblackf = func(format string, args ...any) string {
+			return "\033[90m" + fmt.Sprintf(format, args...) + "\033[0m"
+		}
+		hyperlink = func(url, txt string) string {
+			return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, txt)
+		}
 	}
 
 	if fs.NArg() != 1 {
