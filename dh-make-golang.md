@@ -33,6 +33,15 @@ command is executed. To learn more about a command, run
 :   Estimates the work necessary to bring *go-package-importpath*
     into Debian by printing all currently unpacked repositories.
 
+**clone** *package-name*
+:   Clone a Go package from Salsa and download the appropriate
+    tarball using **gbp-clone**(1).
+
+**check-depends**
+:   Compare the Go module dependencies in go.mod against the Debian
+    packages available in the archive. Must be run from within a Go
+    module directory that has Debian packaging.
+
 **create-salsa-project** *project-name*
 :   Create a project for hosting Debian packaging.
 
