@@ -357,7 +357,6 @@ func writeDebianGbpConf(dir string, dep14, pristineTar bool) error {
 	}
 	if pristineTar {
 		fmt.Fprintf(f, `
-
 # Enable pristine-tar for git-buildpackage to exactly reproduce orig tarballs
 pristine-tar = True
 `)
@@ -365,7 +364,6 @@ pristine-tar = True
 
 	// Additional text to the template which is useful for most Go packages
 	fmt.Fprint(f, `
-
 # Enable git-buildpackage to build using the currently checked out branch as if
 # it was the Debian branch. This makes it easier for contributors to develop and
 # test using feature/bugfix branches.
