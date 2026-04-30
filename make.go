@@ -417,7 +417,7 @@ func runGitCommandIn(dir string, arg ...string) error {
 }
 
 func createGitRepository(debsrc, gopkg, orig string, u *upstream,
-	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, pristineTar bool) (string, error) {
+	includeUpstreamHistory bool, allowUnknownHoster bool, debianBranch string, pristineTar bool,useHTTPS bool) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get cwd: %w", err)
@@ -449,7 +449,14 @@ func createGitRepository(debsrc, gopkg, orig string, u *upstream,
 
 	// [remote "origin"]
 
-	originURL := "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
+	// originURL := "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
+	var originURL string
+	if useHTTPS {
+    	originURL = "https://salsa.debian.org/go-team/packages/" + debsrc + ".git"
+	} else {
+    	originURL = "git@salsa.debian.org:go-team/packages/" + debsrc + ".git"
+	}
+
 	log.Printf("Adding remote \"origin\" with URL %q\n", originURL)
 	if err := runGitCommandIn(dir, "remote", "add", "origin", originURL); err != nil {
 		return dir, fmt.Errorf("git remote add origin %s: %w", originURL, err)
@@ -722,6 +729,7 @@ func copyFile(src, dest string) error {
 
 func execMake(args []string, usage func()) {
 	fs := flag.NewFlagSet("make", flag.ExitOnError)
+	useHTTPS := fs.Bool("https", false, "Use HTTPS remote URL instead of SSH")
 	if usage != nil {
 		fs.Usage = usage
 	} else {
@@ -960,7 +968,9 @@ func execMake(args []string, usage func()) {
 
 	debversion := u.version + "-1"
 
-	dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar)
+	//dir, err := createGitRepository(debsrc, gopkg, orig, u, includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar,*useHTTPS)
+	dir, err := createGitRepository(debsrc, gopkg, orig, u,
+		includeUpstreamHistory, allowUnknownHoster, debBranch, pristineTar, *useHTTPS)
 	if err != nil {
 		log.Fatalf("Could not create git repository: %v\n", err)
 	}
