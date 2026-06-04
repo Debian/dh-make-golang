@@ -310,7 +310,7 @@ func writeDebianRules(dir string, pkgType packageType) error {
 	fmt.Fprintf(f, "#!/usr/bin/make -f\n")
 	fmt.Fprintf(f, "\n")
 	fmt.Fprintf(f, "%%:\n")
-	fmt.Fprintf(f, "\tdh $@ --builddirectory=debian/_build --buildsystem=golang\n")
+	fmt.Fprintf(f, "\tdh $@ --builddirectory=debian/_build\n")
 	// Note: The above `--builddirectory=debian/_build` will eventually be obsolete
 	// in 2028+ then the dh-golang version 1.64+ that has merged
 	// https://salsa.debian.org/go-team/packages/dh-golang/-/merge_requests/26
