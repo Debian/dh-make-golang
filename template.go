@@ -422,7 +422,7 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 		fmt.Fprint(f, `      uversionmangle=`+uversionmanglePattern)
 		if repack {
 			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds`)
 		}
 		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
@@ -432,7 +432,7 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 		fmt.Fprint(f, `opts="mode=git, pgpmode=none`)
 		if repack {
 			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds`)
 		}
 		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
@@ -447,7 +447,7 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 		fmt.Fprint(f, `#      uversionmangle=`+uversionmanglePattern)
 		if repack {
 			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
+			fmt.Fprint(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds`)
 		}
 		fmt.Fprint(f, `" \`+"\n")
 		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
