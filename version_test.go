@@ -32,11 +32,11 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Fatalf("Could not write temp file %q: %v", tempfile, err)
 	}
 
-	// Suppress git hint about default branch name by setting init.defaultBranch
 	gitCmdOrFatal(t, tempdir, "init", "--initial-branch=master")
 	gitCmdOrFatal(t, tempdir, "config", "user.email", "unittest@example.com")
 	gitCmdOrFatal(t, tempdir, "config", "user.name", "Unit Test")
 	gitCmdOrFatal(t, tempdir, "add", "test")
+
 	cmd := exec.Command("git", "commit", "-a", "-m", "initial commit")
 	cmd.Env = append(os.Environ(), "GIT_COMMITTER_DATE=2015-04-20T11:22:33")
 	cmd.Dir = tempdir
@@ -46,22 +46,25 @@ func TestSnapshotVersion(t *testing.T) {
 	}
 
 	var u upstream
+
 	got, err := pkgVersionFromGit(tempdir, &u, "", false)
 	if err != nil {
-		t.Fatalf("Determining package version from git failed: %v", err)
+		t.Fatalf("version failed: %v", err)
 	}
+
 	if want := "0.0~git20150420."; !strings.HasPrefix(got, want) {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("got %q, want prefix %q", got, want)
 	}
 
 	gitCmdOrFatal(t, tempdir, "tag", "-a", "v1", "-m", "release v1")
 
 	got, err = pkgVersionFromGit(tempdir, &u, "", false)
 	if err != nil {
-		t.Fatalf("Determining package version from git failed: %v", err)
+		t.Fatalf("version failed: %v", err)
 	}
+
 	if want := "1"; got != want {
-		t.Logf("got %q, want %q", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
 	if err := os.WriteFile(tempfile, []byte("testcase 2"), 0644); err != nil {
@@ -78,10 +81,11 @@ func TestSnapshotVersion(t *testing.T) {
 
 	got, err = pkgVersionFromGit(tempdir, &u, "", false)
 	if err != nil {
-		t.Fatalf("Determining package version from git failed: %v", err)
+		t.Fatalf("version failed: %v", err)
 	}
+
 	if want := "1+git20150507.1."; !strings.HasPrefix(got, want) {
-		t.Logf("got %q, want %q", got, want)
+		t.Errorf("got %q, want prefix %q", got, want)
 	}
 
 	if err := os.WriteFile(tempfile, []byte("testcase 3"), 0644); err != nil {
@@ -98,9 +102,10 @@ func TestSnapshotVersion(t *testing.T) {
 
 	got, err = pkgVersionFromGit(tempdir, &u, "", false)
 	if err != nil {
-		t.Fatalf("Determining package version from git failed: %v", err)
+		t.Fatalf("version failed: %v", err)
 	}
+
 	if want := "1+git20150508.2."; !strings.HasPrefix(got, want) {
-		t.Logf("got %q, want %q", got, want)
+		t.Errorf("got %q, want prefix %q", got, want)
 	}
 }
