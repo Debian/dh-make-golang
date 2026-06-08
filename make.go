@@ -715,10 +715,20 @@ func copyFile(src, dest string) error {
 	if err != nil {
 		return fmt.Errorf("create: %w", err)
 	}
+	defer func() {
+		_ = output.Close() // safe cleanup
+	}()
+
 	if _, err := io.Copy(output, input); err != nil {
 		return fmt.Errorf("copy: %w", err)
 	}
-	return output.Close()
+
+	// explicitly close and return error properly
+	if err := output.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
+	}
+
+	return nil
 }
 
 func execMake(args []string, usage func()) {
