@@ -119,27 +119,34 @@ func getDirectDependencies(gopath, repodir, module string) (map[string]bool, err
 	if err != nil {
 		return nil, fmt.Errorf("get module dir: %w", err)
 	}
-	// We cannot use "go list -m ..." if there is no go.mod file, but
-	// such packages are usually quite old and have few dependencies,
-	// so we return a nil map without error.
+
+	// If no go.mod, return nil (old-style repos)
 	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
 		return nil, nil
 	}
+
 	cmd := exec.Command("go", "list", "-m", "-f", "{{if not .Indirect}}{{.Path}}{{end}}", "all")
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{
 		"GOPATH=" + gopath,
 	}, passthroughEnv()...)
+
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("go list: args: %v; error: %w", cmd.Args, err)
 	}
+
 	out = bytes.TrimRight(out, "\n")
+
 	deps := map[string]bool{}
 	for line := range strings.SplitSeq(string(out), "\n") {
+		if line == "" {
+			continue
+		}
 		deps[line] = true
 	}
+
 	return deps, nil
 }
 
