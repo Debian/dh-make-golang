@@ -11,6 +11,9 @@ import (
 func forceRemoveAll(path string) error {
 	// first pass to make sure all the directories are writable
 	err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if info.IsDir() {
 			return os.Chmod(path, 0777)
 		} else {
