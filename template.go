@@ -412,45 +412,38 @@ func writeDebianWatch(dir, gopkg, debsrc string, hasRelease bool, repack bool) e
 	}
 	defer f.Close()
 
-	filenamemanglePattern := `s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%@PACKAGE@-$1.tar.gz%`
-	uversionmanglePattern := `s/(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$/$1~$2$3/`
+	// This whole section uses the uscan v5 format
+	fmt.Fprint(f, "Version: 5\n")
 
+	// If upstream has releases, instruct uscan to download latest release.
+	// Otherwise use upstream git HEAD.
 	if hasRelease {
-		log.Printf("Setting debian/watch to track release tarball")
-		fmt.Fprint(f, "version=4\n")
-		fmt.Fprint(f, `opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
-		fmt.Fprint(f, `      uversionmangle=`+uversionmanglePattern)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
+		log.Printf("Setting debian/watch to fetch the GitHub release tarball")
+		fmt.Fprint(f, "Template: GitHub\n")
+		fmt.Fprintf(f, "Dist: https://github.com/%s/%s\n", owner, repo)
 	} else {
 		log.Printf("Setting debian/watch to track git HEAD")
-		fmt.Fprint(f, "version=4\n")
-		fmt.Fprint(f, `opts="mode=git, pgpmode=none`)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `  https://%s/%s/%s.git \`+"\n", host, owner, repo)
-		fmt.Fprint(f, "  HEAD debian\n")
+		fmt.Fprint(f, "Mode: git\n")
+		fmt.Fprintf(f, "Source: https://%s/%s/%s.git\n", host, owner, repo)
+		fmt.Fprint(f, "Matching-Pattern: HEAD\n")
+		fmt.Fprint(f, "# Enable verifying git tags are signed if upstream uses them:\n")
+		fmt.Fprint(f, "#Pgp-Mode: gittag\n")
 
 		// Anticipate that upstream would eventually switch to tagged releases
-		fmt.Fprint(f, "\n")
+		fmt.Fprint(f, "#\n")
 		fmt.Fprint(f, "# Use the following when upstream starts to tag releases:\n")
 		fmt.Fprint(f, "#\n")
-		fmt.Fprint(f, "#version=4\n")
-		fmt.Fprint(f, `#opts="filenamemangle=`+filenamemanglePattern+`,\`+"\n")
-		fmt.Fprint(f, `#      uversionmangle=`+uversionmanglePattern)
-		if repack {
-			fmt.Fprint(f, `,\`+"\n")
-			fmt.Fprint(f, `#      dversionmangle=s/\+ds\d*$//,repacksuffix=+ds1`)
-		}
-		fmt.Fprint(f, `" \`+"\n")
-		fmt.Fprintf(f, `#  https://%s/%s/%s/tags .*/v?(\d\S*)\.tar\.gz debian`+"\n", host, owner, repo)
+		fmt.Fprint(f, "#Template: GitHub\n")
+		fmt.Fprintf(f, "#Dist: https://github.com/%s/%s\n", owner, repo)
+	}
+
+	// If upstream release was repacked, use suffix '+ds' to continue the Go
+	// team's historical convention despite uscan man page stating '+ds' as
+	// 'useless' option and preferring '+dfsg'.
+	if repack {
+		log.Printf("Setting debian/watch to repack with suffix +ds")
+		fmt.Fprint(f, "Repacksuffix: +ds\n")
+		fmt.Fprint(f, "Dversion-Mangle: auto\n")
 	}
 
 	return nil
