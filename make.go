@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/publicsuffix"
@@ -102,6 +103,32 @@ func downloadFile(filename, url string) error {
 	}
 
 	return nil
+}
+
+func extractModVersionIfPresent(gopkg string, repoRoot string) string {
+	// For version suffix checks to succeed, the gopkg should fully match
+	// the rootPkgName and should have a '/' attached to it.
+	// tests:
+	// github.com/path/mod/v2 is gopkg, github.com/path/mod is rootName, then return v2
+	// github.com/path/something/v1 is gopkg, github.com/path/mod is rootName, then return ""
+	// github.com/path/mod/file is gopkg, github.com/path/mod is rootName, then return ""
+	//
+	if !strings.HasPrefix(gopkg, repoRoot+"/") {
+		return ""
+	}
+
+	suffix := strings.TrimPrefix(gopkg, repoRoot+"/")
+
+	if strings.Contains(suffix, "/") {
+		return ""
+	}
+
+	var versionSuffixRegExp = regexp.MustCompile(`^v[2-9][0-9]*$`)
+
+	if versionSuffixRegExp.MatchString(suffix) {
+		return suffix
+	}
+	return ""
 }
 
 // upstream describes the upstream repo we are about to package.
@@ -597,8 +624,9 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 // debianNameFromGopkg maps a Go package repo path to a Debian package name,
 // e.g. "golang.org/x/text" → "golang-golang-x-text".
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
-func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool) string {
+func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool, modVersion string) string {
 	parts := strings.Split(gopkg, "/")
+	parts = append(parts, modVersion)
 
 	if t == typeProgram || t == typeProgramLibrary {
 		if customProgPkgName != "" {
@@ -830,22 +858,24 @@ func execMake(args []string, usage func()) {
 
 	gitRevision = strings.TrimSpace(gitRevision)
 	gopkg := fs.Arg(0)
-
+	modVersion := ""
 	// Ensure the specified argument is a Go package import path.
 	rr, err := vcs.RepoRootForImportPath(gopkg, false)
 	if err != nil {
 		log.Fatalf("Verifying arguments: %v — did you specify a Go package import path?", err)
 	}
 	if gopkg != rr.Root {
+		// Check if the difference is because the gopkg includes the version suffix
+		modVersion = extractModVersionIfPresent(gopkg, rr.Root)
 		log.Printf("Continuing with repository root %q instead of specified import path %q (repositories are the unit of packaging in Debian)", rr.Root, gopkg)
 		gopkg = rr.Root
 	}
 
 	// Set default source and binary package names.
 	// Note that debsrc may change depending on the actual package type.
-	debsrc := debianNameFromGopkg(gopkg, typeLibrary, customProgPkgName, allowUnknownHoster)
+	debsrc := debianNameFromGopkg(gopkg, typeLibrary, customProgPkgName, allowUnknownHoster, modVersion)
 	debLib := debsrc + "-dev"
-	debProg := debianNameFromGopkg(gopkg, typeProgram, customProgPkgName, allowUnknownHoster)
+	debProg := debianNameFromGopkg(gopkg, typeProgram, customProgPkgName, allowUnknownHoster, modVersion)
 
 	var pkgType packageType
 
@@ -889,7 +919,7 @@ func execMake(args []string, usage func()) {
 	}
 
 	if pkgType != typeGuess {
-		debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+		debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster, modVersion)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 		}
@@ -929,7 +959,7 @@ func execMake(args []string, usage func()) {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
 			pkgType = typeProgram
-			debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+			debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster, modVersion)
 		} else {
 			pkgType = typeLibrary
 		}
@@ -970,7 +1000,7 @@ func execMake(args []string, usage func()) {
 	for _, dep := range u.repoDeps {
 		if len(golangBinaries) == 0 {
 			// fall back to heuristic
-			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, "", allowUnknownHoster)+"-dev")
+			debdependencies = append(debdependencies, debianNameFromGopkg(dep, typeLibrary, "", allowUnknownHoster, "")+"-dev")
 			continue
 		}
 		pkg, ok := golangBinaries[dep]
