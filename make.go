@@ -694,7 +694,6 @@ func normalizeDebianPackageName(str string) string {
 	if len(safe) < 2 {
 		return "TODO"
 	}
-
 	return safe
 }
 
@@ -754,7 +753,6 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
 func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool) string {
 	parts := strings.Split(gopkg, "/")
-
 	if t == typeProgram || t == typeProgramLibrary {
 		if customProgPkgName != "" {
 			return normalizeDebianPackageName(customProgPkgName)
@@ -1046,7 +1044,7 @@ func execMake(args []string, usage func()) {
 	}
 
 	if pkgType != typeGuess {
-		debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+		debsrc = debianNameFromGopkg(goPkgOrig, pkgType, customProgPkgName, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 		}
@@ -1086,7 +1084,7 @@ func execMake(args []string, usage func()) {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
 			pkgType = typeProgram
-			debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+			debsrc = debianNameFromGopkg(goPkgOrig, pkgType, customProgPkgName, allowUnknownHoster)
 		} else {
 			pkgType = typeLibrary
 		}

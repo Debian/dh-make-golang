@@ -59,6 +59,7 @@ var nameFromGoPkg = []struct {
 	{"golang.org/x/term", typeLibrary, "", "golang-golang-x-term"},
 	{"github.com/cli/cli", typeProgram, "gh", "gh"},
 	{"github.com/Debian/test-pkg/v2", typeLibrary, "", "golang-github-debian-test-pkg-v2"},
+	{"github.com/open-policy-agent/regal", typeProgram, "", "golang-github-open-policy-agent-regal"},
 }
 
 func TestDebianNameFromGopkg(t *testing.T) {
