@@ -106,32 +106,6 @@ func downloadFile(filename, url string) error {
 	return nil
 }
 
-func extractModVersionIfPresent(gopkg string, repoRoot string) string {
-	// For version suffix checks to succeed, the gopkg should fully match
-	// the rootPkgName and should have a '/' attached to it.
-	// tests:
-	// github.com/path/mod/v2 is gopkg, github.com/path/mod is rootName, then return v2
-	// github.com/path/something/v1 is gopkg, github.com/path/mod is rootName, then return ""
-	// github.com/path/mod/file is gopkg, github.com/path/mod is rootName, then return ""
-	//
-	if !strings.HasPrefix(gopkg, repoRoot+"/") {
-		return ""
-	}
-
-	suffix := strings.TrimPrefix(gopkg, repoRoot+"/")
-
-	if strings.Contains(suffix, "/") {
-		return ""
-	}
-
-	var versionSuffixRegExp = regexp.MustCompile(`^v[2-9][0-9]*$`)
-
-	if versionSuffixRegExp.MatchString(suffix) {
-		return suffix
-	}
-	return ""
-}
-
 // upstream describes the upstream repo we are about to package.
 type upstream struct {
 	rr          *RepoRoot
@@ -752,12 +726,31 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 // e.g. "golang.org/x/text" → "golang-golang-x-text".
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
 func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool) string {
+
 	parts := strings.Split(gopkg, "/")
+	suffix := parts[len(parts)-1]
+	var versionSuffixRegExp = regexp.MustCompile(`^v[0-9]+$`)
+	hasUsableMajorModVer := false
+	if versionSuffixRegExp.MatchString(suffix) {
+		if suffix == "v0" || suffix == "v1" {
+			log.Println("Building package for a Go module with major version < v2, skipping version name in package name")
+			parts = parts[:len(parts)-1]
+		} else {
+			hasUsableMajorModVer = true
+			log.Println("Building package for a Go module with a major version")
+		}
+	}
+
 	if t == typeProgram || t == typeProgramLibrary {
 		if customProgPkgName != "" {
 			return normalizeDebianPackageName(customProgPkgName)
 		}
-		return normalizeDebianPackageName(parts[len(parts)-1])
+		// If the major ver >= 2, use parts[len-2:] to get <prog>-<ver>
+		if hasUsableMajorModVer && len(parts) >= 2 {
+			return normalizeDebianPackageName(strings.Join(parts[len(parts)-2:], "-"))
+		} else {
+			return normalizeDebianPackageName(parts[len(parts)-1])
+		}
 	}
 
 	host, err := shortHostName(gopkg, allowUnknownHoster)

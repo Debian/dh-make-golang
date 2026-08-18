@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-
 )
 
 var shortName = []struct {
@@ -59,7 +58,13 @@ var nameFromGoPkg = []struct {
 	{"golang.org/x/term", typeLibrary, "", "golang-golang-x-term"},
 	{"github.com/cli/cli", typeProgram, "gh", "gh"},
 	{"github.com/Debian/test-pkg/v2", typeLibrary, "", "golang-github-debian-test-pkg-v2"},
-	{"github.com/open-policy-agent/regal", typeProgram, "", "golang-github-open-policy-agent-regal"},
+	{"github.com/open-policy-agent/regal", typeProgram, "", "regal"},
+	{"github.com/Debian/test-pkg/v0", typeLibrary, "", "golang-github-debian-test-pkg"},
+	{"github.com/Debian/test-pkg/v1", typeLibrary, "", "golang-github-debian-test-pkg"},
+	{"github.com/Debian/test-pkg/v15", typeLibrary, "", "golang-github-debian-test-pkg-v15"},
+	{"github.com/Debian/test-pkg/v37", typeLibrary, "", "golang-github-debian-test-pkg-v37"},
+	{"github.com/Debian/test-prog/v12", typeProgram, "", "test-prog-v12"},
+	{"github.com/Debian/test-prog/v1", typeProgram, "", "test-prog"},
 }
 
 func TestDebianNameFromGopkg(t *testing.T) {
