@@ -529,20 +529,5 @@ include:
 	defer f.Close()
 	fmt.Fprint(f, gitlabciymlTmpl)
 
-	// Write a compatibility shim for older tooling expecting gitlab-ci.yml
-	compatPath := filepath.Join(dir, "debian", "gitlab-ci.yml")
-	fCompat, err := os.Create(compatPath)
-	if err != nil {
-		return err
-	}
-	defer fCompat.Close()
-
-	const compatContent = `# This file exists only for backwards compatibility and can be removed once all
-# documentation and tools have migrated to use the new file name 'salsa-ci.yml'
-include:
-  - local: '/debian/salsa-ci.yml'
-`
-	fmt.Fprint(fCompat, compatContent)
-
 	return nil
 }
