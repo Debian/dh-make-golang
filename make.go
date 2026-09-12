@@ -13,11 +13,13 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
+	"golang.org/x/net/html"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/tools/go/vcs"
 )
 
 type packageType int
@@ -106,7 +108,7 @@ func downloadFile(filename, url string) error {
 
 // upstream describes the upstream repo we are about to package.
 type upstream struct {
-	rr          *vcs.RepoRoot
+	rr          *RepoRoot
 	tarPath     string   // path to the downloaded or generated orig tarball tempfile
 	compression string   // compression method, either "gz" or "xz"
 	version     string   // Debian package upstream version number, e.g. 0.0~git20180204.1d24609
@@ -121,12 +123,139 @@ type upstream struct {
 	isRelease   bool     // whether what we end up packaging is a tagged release
 }
 
+type RepoRoot struct {
+	VCS          *VCSWrapper
+	Repo         string
+	Root         string
+	MajorVersion string
+}
+
+type VCSWrapper struct {
+	Cmd string
+}
+
+func (vcs *VCSWrapper) Create(dir, repo string) error {
+	if _, err := os.Stat(dir); os.IsExist(err) {
+		return fmt.Errorf("Dir %s already exists, aborting", dir)
+	}
+	parent := filepath.Dir(dir)
+	_, err := os.Stat(parent)
+	if os.IsNotExist(err) {
+		if err = os.MkdirAll(parent, 0755); err != nil {
+			return fmt.Errorf("Could not create parent dir for %s", dir)
+		}
+	}
+
+	cmd := exec.Command("git", "clone", repo, dir)
+	_, err = cmd.Output()
+	if err != nil {
+		return fmt.Errorf("Failed to clone repo %s: %w", repo, err)
+	}
+	return nil
+}
+
+func (vcs *VCSWrapper) CreateAtRev(dir, repo, rev string) error {
+	err := vcs.Create(dir, repo)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("git", "-C", "dir", "checkout", rev)
+	_, cErr := cmd.Output()
+	if cErr != nil {
+		log.Println("ERROR: Could not checkout tag")
+		return cErr
+	}
+	return nil
+}
+
+func (vcs *VCSWrapper) Tags(dir string) ([]string, error) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("Dir %s already exists, aborting", dir)
+	}
+	cmd := exec.Command("git", "-C", dir, "tag", "-l")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get tags in dir %s: %s", dir, err)
+	}
+	tags := strings.Split(string(out), "\n")
+	return tags, nil
+}
+
+// Implemented based on https://go.dev/ref/mod#vcs-find
+func RepoRootForImportPath(importPath string, verbose bool) (*RepoRoot, error) {
+	parts := strings.Split(importPath, "/")
+	major := ""
+	if last := parts[len(parts)-1]; strings.HasPrefix(last, "v") {
+		if _, err := strconv.Atoi(last[1:]); err == nil {
+			major = last
+			parts := parts[:len(parts)-1]
+			importPath = strings.Join(parts, "/")
+		}
+	}
+	for len(parts) >= 3 {
+		uriPath := strings.Join(parts, "/")
+		resp, err := http.Get("https://" + uriPath + "?go-get=1")
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode == http.StatusOK {
+			doc, err := html.Parse(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				return nil, err
+			}
+			if repo := repoFromModuleImport(doc); repo != "" {
+				return &RepoRoot{&VCSWrapper{"git"}, repo, importPath, major}, nil
+			}
+		} else {
+			// Most likely a 404, walk up the module import path and attempt again
+			if verbose {
+				log.Println("Walking up the module path to do go-get for repo info")
+			}
+			resp.Body.Close()
+		}
+		parts = parts[:len(parts)-1]
+	}
+	return nil, fmt.Errorf("Could not fetch repo info")
+
+}
+func repoFromModuleImport(doc *html.Node) string {
+	var repo string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if repo != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			var name, content string
+			for _, a := range n.Attr {
+				if a.Key == "name" {
+					name = a.Val
+				} else if a.Key == "content" {
+					content = a.Val
+				}
+			}
+			if name == "go-import" {
+				p := strings.Fields(content)
+				if len(p) == 3 {
+					repo = p[2]
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil && repo == ""; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+	return repo
+}
+
 func (u *upstream) get(gopath, repo, rev string) error {
 	done := make(chan struct{})
 	defer close(done)
 	go progressSize("go get", filepath.Join(gopath, "src"), done)
 
-	rr, err := vcs.RepoRootForImportPath(repo, false)
+	rr, err := RepoRootForImportPath(repo, false)
 	if err != nil {
 		return fmt.Errorf("get repo root: %w", err)
 	}
@@ -326,7 +455,7 @@ func (u *upstream) findDependencies(gopath, repo string) error {
 	// Resolve all packages to the root of their repository.
 	roots := make(map[string]bool)
 	for dep := range godependencies {
-		rr, err := vcs.RepoRootForImportPath(dep, false)
+		rr, err := RepoRootForImportPath(dep, false)
 		if err != nil {
 			log.Printf("Could not determine repo path for import path %q: %v\n", dep, err)
 			continue
@@ -539,7 +668,6 @@ func normalizeDebianPackageName(str string) string {
 	if len(safe) < 2 {
 		return "TODO"
 	}
-
 	return safe
 }
 
@@ -598,13 +726,31 @@ func shortHostName(gopkg string, allowUnknownHoster bool) (host string, err erro
 // e.g. "golang.org/x/text" → "golang-golang-x-text".
 // This follows https://fedoraproject.org/wiki/PackagingDrafts/Go#Package_Names
 func debianNameFromGopkg(gopkg string, t packageType, customProgPkgName string, allowUnknownHoster bool) string {
+
 	parts := strings.Split(gopkg, "/")
+	suffix := parts[len(parts)-1]
+	var versionSuffixRegExp = regexp.MustCompile(`^v[0-9]+$`)
+	hasUsableMajorModVer := false
+	if versionSuffixRegExp.MatchString(suffix) {
+		if suffix == "v0" || suffix == "v1" {
+			log.Println("Building package for a Go module with major version < v2, skipping version name in package name")
+			parts = parts[:len(parts)-1]
+		} else {
+			hasUsableMajorModVer = true
+			log.Println("Building package for a Go module with a major version")
+		}
+	}
 
 	if t == typeProgram || t == typeProgramLibrary {
 		if customProgPkgName != "" {
 			return normalizeDebianPackageName(customProgPkgName)
 		}
-		return normalizeDebianPackageName(parts[len(parts)-1])
+		// If the major ver >= 2, use parts[len-2:] to get <prog>-<ver>
+		if hasUsableMajorModVer && len(parts) >= 2 {
+			return normalizeDebianPackageName(strings.Join(parts[len(parts)-2:], "-"))
+		} else {
+			return normalizeDebianPackageName(parts[len(parts)-1])
+		}
 	}
 
 	host, err := shortHostName(gopkg, allowUnknownHoster)
@@ -830,22 +976,24 @@ func execMake(args []string, usage func()) {
 
 	gitRevision = strings.TrimSpace(gitRevision)
 	gopkg := fs.Arg(0)
-
+	goPkgOrig := gopkg
 	// Ensure the specified argument is a Go package import path.
-	rr, err := vcs.RepoRootForImportPath(gopkg, false)
+	rr, err := RepoRootForImportPath(gopkg, false)
 	if err != nil {
 		log.Fatalf("Verifying arguments: %v — did you specify a Go package import path?", err)
 	}
 	if gopkg != rr.Root {
+		// Check if the difference is because the gopkg includes the version suffix
 		log.Printf("Continuing with repository root %q instead of specified import path %q (repositories are the unit of packaging in Debian)", rr.Root, gopkg)
 		gopkg = rr.Root
+		log.Printf("Using %q to create the debian package name", goPkgOrig)
 	}
 
 	// Set default source and binary package names.
 	// Note that debsrc may change depending on the actual package type.
-	debsrc := debianNameFromGopkg(gopkg, typeLibrary, customProgPkgName, allowUnknownHoster)
+	debsrc := debianNameFromGopkg(goPkgOrig, typeLibrary, customProgPkgName, allowUnknownHoster)
 	debLib := debsrc + "-dev"
-	debProg := debianNameFromGopkg(gopkg, typeProgram, customProgPkgName, allowUnknownHoster)
+	debProg := debianNameFromGopkg(goPkgOrig, typeProgram, customProgPkgName, allowUnknownHoster)
 
 	var pkgType packageType
 
@@ -889,7 +1037,7 @@ func execMake(args []string, usage func()) {
 	}
 
 	if pkgType != typeGuess {
-		debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+		debsrc = debianNameFromGopkg(goPkgOrig, pkgType, customProgPkgName, allowUnknownHoster)
 		if _, err := os.Stat(debsrc); err == nil {
 			log.Fatalf("Output directory %q already exists, aborting\n", debsrc)
 		}
@@ -929,7 +1077,7 @@ func execMake(args []string, usage func()) {
 		if u.firstMain != "" {
 			log.Printf("Assuming you are packaging a program (because %q defines a main package), use -type to override\n", u.firstMain)
 			pkgType = typeProgram
-			debsrc = debianNameFromGopkg(gopkg, pkgType, customProgPkgName, allowUnknownHoster)
+			debsrc = debianNameFromGopkg(goPkgOrig, pkgType, customProgPkgName, allowUnknownHoster)
 		} else {
 			pkgType = typeLibrary
 		}
