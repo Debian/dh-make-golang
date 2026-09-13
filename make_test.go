@@ -70,6 +70,37 @@ func TestDebianNameFromGopkg(t *testing.T) {
 	}
 }
 
+func TestSalsaPackageURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		debsrc   string
+		https    bool
+		expected string
+	}{
+		{
+			name:     "ssh",
+			debsrc:   "golang-github-mattn-go-sqlite3",
+			https:    false,
+			expected: "git@salsa.debian.org:go-team/packages/golang-github-mattn-go-sqlite3.git",
+		},
+		{
+			name:     "https",
+			debsrc:   "golang-github-mattn-go-sqlite3",
+			https:    true,
+			expected: "https://salsa.debian.org/go-team/packages/golang-github-mattn-go-sqlite3.git",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := salsaPackageURL(tt.debsrc, tt.https)
+			if got != tt.expected {
+				t.Errorf("salsaPackageURL(%q, %v) => %q, want %q", tt.debsrc, tt.https, got, tt.expected)
+			}
+		})
+	}
+}
+
 var tarballUrl = []struct {
 	repoRoot    string
 	tag         string

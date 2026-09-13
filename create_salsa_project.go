@@ -13,9 +13,14 @@ import (
 func execCreateSalsaProject(args []string) {
 	fs := flag.NewFlagSet("create-salsa-project", flag.ExitOnError)
 
+	useHTTPS := fs.Bool("https", false, "Use HTTPS remote URL instead of SSH")
+
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s create-salsa-project <project-name>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s create-salsa-project [FLAG]... <project-name>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Example: %s create-salsa-project golang-github-mattn-go-sqlite3\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		fs.PrintDefaults()
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -44,4 +49,6 @@ func execCreateSalsaProject(args []string) {
 		b, _ := io.ReadAll(resp.Body)
 		log.Fatalf("unexpected HTTP status code: got %d, want %d (response: %s)", got, want, string(b))
 	}
+
+	fmt.Printf("Project created. Remote URL: %s\n", salsaPackageURL(projectName, *useHTTPS))
 }
