@@ -168,3 +168,32 @@ func TestCheckDependsHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestParseGoModDependenciesWithToolBlock(t *testing.T) {
+	dir := t.TempDir()
+	gomod := `module example.com/foo
+
+go 1.24
+
+require github.com/pkg/errors v0.9.1
+
+tool (
+	golang.org/x/tools/cmd/goimports
+	gotest.tools/gotestsum
+)
+`
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := parseGoModDependencies(dir, map[string]debianPackage{
+		"github.com/pkg/errors": {binary: "golang-github-pkg-errors-dev"},
+	})
+	if err != nil {
+		t.Fatalf("parseGoModDependencies() error = %v", err)
+	}
+	want := []dependency{{importPath: "github.com/pkg/errors", packageName: "golang-github-pkg-errors-dev"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("parseGoModDependencies() = %v, want %v", got, want)
+	}
+}
