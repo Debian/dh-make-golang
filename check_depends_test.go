@@ -20,7 +20,7 @@ Build-Depends:
  debhelper-compat (= 13),
  dh-sequence-golang,
  dpkg-build-api (= 1),
- golang-any,
+ golang-go,
  golang-github-advancedlogic-goose-dev,
  golang-github-fatih-color-dev,
  golang-github-jroimartin-gocui-dev,
