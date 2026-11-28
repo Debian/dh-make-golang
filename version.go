@@ -27,7 +27,26 @@ var (
 	// To be kept in sync with the default regex in uscan:
 	// https://manpages.debian.org/unstable/devscripts/debian-watch.5.en.html#Uversion-Mangle:
 	uversionPrereleaseRegexp = regexp.MustCompile(`(\d)[_\.\-\+]?(RC|rc|pre|dev|beta|alpha)[.]?(\d*)$`)
+
+	// debianUpstreamVersionRegexp checks if a string is a valid Debian
+	// upstream_version (Debian Policy 5.6.12) when a debian_revision is present.
+	debianUpstreamVersionRegexp = regexp.MustCompile(`^[0-9][0-9a-zA-Z.+~-]*$`)
 )
+
+// uversionFromTag mangles an upstream Git tag into a Debian upstream_version,
+// returning an empty string if the result is not a valid Debian upstream_version.
+func uversionFromTag(tag string) string {
+	v := strings.TrimLeftFunc(
+		uversionPrereleaseRegexp.ReplaceAllString(tag, "$1~$2$3"),
+		func(r rune) bool {
+			return !unicode.IsNumber(r)
+		},
+	)
+	if !debianUpstreamVersionRegexp.MatchString(v) {
+		return ""
+	}
+	return v
+}
 
 // pkgVersionFromGit determines the actual version to be packaged
 // from the git repository status and user preference.
@@ -38,14 +57,27 @@ var (
 // TODO: also support other VCS
 func pkgVersionFromGit(gitdir string, u *upstream, preferredRev string, forcePrerelease bool) (string, error) {
 	var latestTag string
+	var uversion string
 	var commitsAhead int
 
+	u.hasRelease = false
+	u.isRelease = false
+	u.tag = ""
+
 	var cmd *exec.Cmd // the temporary shell commands we execute
+	describeArgs := []string{"describe", "--abbrev=0", "--tags", "--exclude", "*/v*"}
 
 	// If the user specifies a valid tag as the preferred revision, that tag should be used without additional heuristics.
-	if u.rr != nil {
+	if preferredRev != "" && u.rr != nil {
 		if out, err := u.rr.VCS.Tags(gitdir); err == nil && slices.Contains(out, preferredRev) {
-			latestTag = preferredRev
+			if v := uversionFromTag(preferredRev); v != "" {
+				latestTag = preferredRev
+				uversion = v
+			} else {
+				log.Printf("WARNING: Specified tag %q is not a valid version; packaging snapshot instead\n", preferredRev)
+				forcePrerelease = true
+				describeArgs = append(describeArgs, "--exclude", preferredRev)
+			}
 		}
 	}
 
@@ -53,10 +85,24 @@ func pkgVersionFromGit(gitdir string, u *upstream, preferredRev string, forcePre
 	// (1) does not specify a version tag, or
 	// (2) specifies an invalid version tag.
 	if len(latestTag) == 0 {
-		cmd = exec.Command("git", "describe", "--abbrev=0", "--tags", "--exclude", "*/v*")
-		cmd.Dir = gitdir
-		if out, err := cmd.Output(); err == nil {
-			latestTag = strings.TrimSpace(string(out))
+		for {
+			cmd = exec.Command("git", describeArgs...)
+			cmd.Dir = gitdir
+			out, err := cmd.Output()
+			if err != nil {
+				break
+			}
+			tag := strings.TrimSpace(string(out))
+			if tag == "" {
+				break
+			}
+			if v := uversionFromTag(tag); v != "" {
+				latestTag = tag
+				uversion = v
+				break
+			}
+			log.Printf("WARNING: Ignoring tag %q as it is not a valid version\n", tag)
+			describeArgs = append(describeArgs, "--exclude", tag)
 		}
 	}
 
@@ -90,15 +136,7 @@ func pkgVersionFromGit(gitdir string, u *upstream, preferredRev string, forcePre
 		}
 
 		u.commitIsh = latestTag
-
-		// Mangle latestTag into Debian upstream_version
-		// TODO: Move to function and write unit test?
-		u.version = strings.TrimLeftFunc(
-			uversionPrereleaseRegexp.ReplaceAllString(latestTag, "$1~$2$3"),
-			func(r rune) bool {
-				return !unicode.IsNumber(r)
-			},
-		)
+		u.version = uversion
 
 		if forcePrerelease {
 			log.Printf("INFO: Force packaging master (prerelease) as requested by user")
@@ -131,12 +169,15 @@ func pkgVersionFromGit(gitdir string, u *upstream, preferredRev string, forcePre
 	}
 
 	// This results in an output like "v4.10.2-232-g9f107c8"
-	cmd = exec.Command("git", "describe", "--long", "--tags")
-	cmd.Dir = gitdir
+	var describeBytes []byte
+	if u.hasRelease {
+		cmd = exec.Command("git", "describe", "--long", "--tags", "--match", u.tag)
+		cmd.Dir = gitdir
+		describeBytes, err = cmd.Output()
+	}
 	lastCommitHash := ""
-	describeBytes, err := cmd.Output()
-	if err != nil {
-		// In case there are no tags at all, we just use the sha of the current commit
+	if !u.hasRelease || err != nil {
+		// In case there are no release tags at all, we just use the sha of the current commit
 		cmd = exec.Command("git", "rev-parse", "--short", "HEAD")
 		cmd.Dir = gitdir
 		cmd.Stderr = os.Stderr

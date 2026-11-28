@@ -54,6 +54,19 @@ func TestSnapshotVersion(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
+	gitCmdOrFatal(t, tempdir, "tag", "release")
+
+	got, err = pkgVersionFromGit(tempdir, &u, "", false)
+	if err != nil {
+		t.Fatalf("Determining package version from git failed: %v", err)
+	}
+	if want := "0.0~git20150420."; !strings.HasPrefix(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if u.hasRelease || u.isRelease {
+		t.Errorf("got hasRelease=%v isRelease=%v, want both false", u.hasRelease, u.isRelease)
+	}
+
 	gitCmdOrFatal(t, tempdir, "tag", "-a", "v1", "-m", "release v1")
 
 	got, err = pkgVersionFromGit(tempdir, &u, "", false)
@@ -102,5 +115,15 @@ func TestSnapshotVersion(t *testing.T) {
 	}
 	if want := "1+git20150508.2."; !strings.HasPrefix(got, want) {
 		t.Logf("got %q, want %q", got, want)
+	}
+
+	gitCmdOrFatal(t, tempdir, "tag", "-f", "release")
+
+	got, err = pkgVersionFromGit(tempdir, &u, "", false)
+	if err != nil {
+		t.Fatalf("Determining package version from git failed: %v", err)
+	}
+	if want := "1"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
